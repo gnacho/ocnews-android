@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.28] - 2026-11-08
+
+### Fixed
+
+- A quick flick now advances to the next or previous article using the fling velocity, instead of requiring a long drag; a slow short drag still snaps to the nearest page.
+
 ## [0.1.26] - 2026-11-08
 
 ### Fixed
