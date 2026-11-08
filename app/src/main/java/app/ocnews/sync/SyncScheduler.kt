@@ -10,18 +10,25 @@ import java.util.concurrent.TimeUnit
 
 object SyncScheduler {
     private const val UNIQUE_NAME = "ocnews_sync"
-    private const val INTERVAL_MINUTES = 15L
+    private const val MIN_INTERVAL_MINUTES = 15L // WorkManager minimum periodic interval
 
-    fun schedule(context: Context) {
+    // minutes <= 0 = never (cancels any scheduled work).
+    fun schedule(context: Context, minutes: Long) {
+        val workManager = WorkManager.getInstance(context)
+        if (minutes <= 0) {
+            workManager.cancelUniqueWork(UNIQUE_NAME)
+            return
+        }
+        val interval = maxOf(minutes, MIN_INTERVAL_MINUTES)
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
-        val request = PeriodicWorkRequestBuilder<SyncWorker>(INTERVAL_MINUTES, TimeUnit.MINUTES)
+        val request = PeriodicWorkRequestBuilder<SyncWorker>(interval, TimeUnit.MINUTES)
             .setConstraints(constraints)
             .build()
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+        workManager.enqueueUniquePeriodicWork(
             UNIQUE_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
     }

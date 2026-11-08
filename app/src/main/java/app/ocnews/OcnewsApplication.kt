@@ -11,6 +11,6 @@ class OcnewsApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        SyncScheduler.schedule(this)
+        SyncScheduler.schedule(this, 15)
     }
 }

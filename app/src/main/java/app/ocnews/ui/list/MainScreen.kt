@@ -75,6 +75,7 @@ fun MainScreen(
     onSync: () -> Unit,
     onLogout: () -> Unit,
     onImportOpml: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     var selectedItem by remember { mutableStateOf<ItemEntity?>(null) }
     var showAddFeed by remember { mutableStateOf(false) }
@@ -101,6 +102,7 @@ fun MainScreen(
                 },
                 onLogout = onLogout,
                 onImportOpml = onImportOpml,
+                onOpenSettings = onOpenSettings,
             )
         },
     ) {
@@ -157,6 +159,7 @@ private fun DrawerContent(
     onSelectScope: (Scope) -> Unit,
     onLogout: () -> Unit,
     onImportOpml: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("ocnews", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -194,6 +197,11 @@ private fun DrawerContent(
             label = { Text("Import OPML") },
             selected = false,
             onClick = onImportOpml,
+        )
+        NavigationDrawerItem(
+            label = { Text("Settings") },
+            selected = false,
+            onClick = onOpenSettings,
         )
         TextButton(onClick = onLogout) { Text("Log out") }
     }

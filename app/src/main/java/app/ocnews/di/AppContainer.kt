@@ -8,6 +8,8 @@ import app.ocnews.data.remote.Credentials
 import app.ocnews.data.repo.NewsRepository
 import app.ocnews.data.session.DataStoreSessionStore
 import app.ocnews.data.session.SessionStore
+import app.ocnews.data.settings.DataStoreSettingsStore
+import app.ocnews.data.settings.SettingsStore
 
 // Manual DI (no Hilt for the MVP): a single graph owned by the Application.
 class AppContainer(context: Context) {
@@ -20,6 +22,8 @@ class AppContainer(context: Context) {
     ).build()
 
     val sessionStore: SessionStore = DataStoreSessionStore(appContext)
+
+    val settingsStore: SettingsStore = DataStoreSettingsStore(appContext)
 
     val repository: NewsRepository = NewsRepository(
         sessionStore = sessionStore,

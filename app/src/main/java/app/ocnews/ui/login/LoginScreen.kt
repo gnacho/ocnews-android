@@ -24,51 +24,49 @@ fun LoginScreen(
     onTokenChange: (String) -> Unit,
     onLogin: () -> Unit,
 ) {
-    MaterialTheme {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(text = "ocnews", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(24.dp))
+        OutlinedTextField(
+            value = state.serverUrl,
+            onValueChange = onServerUrlChange,
+            label = { Text("Server URL") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.username,
+            onValueChange = onUsernameChange,
+            label = { Text("Username") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.token,
+            onValueChange = onTokenChange,
+            label = { Text("App token") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (state.error != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(text = state.error, color = MaterialTheme.colorScheme.error)
+        }
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = onLogin,
+            enabled = !state.loading,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(text = "ocnews", style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(24.dp))
-            OutlinedTextField(
-                value = state.serverUrl,
-                onValueChange = onServerUrlChange,
-                label = { Text("Server URL") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = state.username,
-                onValueChange = onUsernameChange,
-                label = { Text("Username") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = state.token,
-                onValueChange = onTokenChange,
-                label = { Text("App token") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (state.error != null) {
-                Spacer(Modifier.height(8.dp))
-                Text(text = state.error, color = MaterialTheme.colorScheme.error)
-            }
-            Spacer(Modifier.height(16.dp))
-            Button(
-                onClick = onLogin,
-                enabled = !state.loading,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (state.loading) "Signing in…" else "Sign in")
-            }
+            Text(if (state.loading) "Signing in…" else "Sign in")
         }
     }
 }

@@ -21,6 +21,9 @@ import app.ocnews.data.remote.dto.UserResponse
 import app.ocnews.data.remote.dto.VersionResponse
 import app.ocnews.data.session.Session
 import app.ocnews.data.session.SessionStore
+import app.ocnews.data.settings.AppSettings
+import app.ocnews.data.settings.SettingsStore
+import app.ocnews.data.settings.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -65,6 +68,15 @@ class FakeSessionStore : SessionStore {
     override val session: Flow<Session?> = state
     override suspend fun save(session: Session) { state.value = session }
     override suspend fun clear() { state.value = null }
+}
+
+class FakeSettingsStore : SettingsStore {
+    private val state = MutableStateFlow(AppSettings())
+    override val settings: Flow<AppSettings> = state
+    override suspend fun setTheme(mode: ThemeMode) { state.value = state.value.copy(theme = mode) }
+    override suspend fun setSyncInterval(minutes: Int) {
+        state.value = state.value.copy(syncIntervalMinutes = minutes)
+    }
 }
 
 class FakeItemDao : ItemDao {
