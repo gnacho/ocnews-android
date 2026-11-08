@@ -4,6 +4,22 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.16] - 2026-11-08
+
+### Added
+
+- Fetch full content in the reader: the overflow menu extracts the full article text via the backend (readability) even when the RSS feed only carries a summary.
+
+### Changed
+
+- The reader is now a single scroll: hero image, title, author/time and body scroll together, giving the article the full screen height.
+- The floating share button is replaced by "Open in browser" (share stays in the top bar).
+
+### Fixed
+
+- Reader top bar was drawn under the status bar, so the overflow menu was unreachable.
+- Out-of-memory crash when swiping between articles: each page's WebView is now destroyed on release (they were leaking native memory).
+
 ## [0.1.14] - 2026-11-08
 
 ### Added
