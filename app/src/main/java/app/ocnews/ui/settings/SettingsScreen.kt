@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,9 +23,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,6 +48,8 @@ import app.ocnews.data.settings.SortOrder
 import app.ocnews.data.settings.SwipeAction
 import app.ocnews.data.settings.TextSize
 import app.ocnews.data.settings.ThemeMode
+import app.ocnews.ui.addfeed.AddFeedDialog
+import app.ocnews.ui.addfeed.AddFeedViewModel
 
 private val themeOptions = listOf(
     R.string.theme_system to ThemeMode.SYSTEM,
@@ -93,10 +98,48 @@ private val textSizeOptions = listOf(
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onImportOpml: () -> Unit,
+    onCreateFolder: (String) -> Unit,
+    addFeedViewModel: AddFeedViewModel,
     onBack: () -> Unit,
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var showAddFeed by remember { mutableStateOf(false) }
+    var showNewFolder by remember { mutableStateOf(false) }
+    var folderName by remember { mutableStateOf("") }
+
+    if (showAddFeed) {
+        AddFeedDialog(viewModel = addFeedViewModel, onDismiss = { showAddFeed = false })
+    }
+
+    if (showNewFolder) {
+        AlertDialog(
+            onDismissRequest = { showNewFolder = false },
+            title = { Text(stringResource(R.string.new_folder)) },
+            text = {
+                OutlinedTextField(
+                    value = folderName,
+                    onValueChange = { folderName = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.folder_name)) },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (folderName.isNotBlank()) {
+                        onCreateFolder(folderName.trim())
+                        folderName = ""
+                        showNewFolder = false
+                    }
+                }) { Text(stringResource(R.string.add)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewFolder = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -117,6 +160,12 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             SectionHeader(R.string.section_general)
+            ActionRow(R.string.new_feed) { showAddFeed = true }
+            ActionRow(R.string.new_folder) {
+                folderName = ""
+                showNewFolder = true
+            }
+            ActionRow(R.string.import_opml, icon = true) { onImportOpml() }
             SwitchRow(R.string.sync_on_start, settings.syncOnStart, viewModel::setSyncOnStart)
             SwitchRow(R.string.only_unread_default, settings.onlyUnread, viewModel::setOnlyUnread)
             ChoiceRow(R.string.swipe_right_action, settings.swipeRight, swipeOptions, viewModel::setSwipeRight)
@@ -154,10 +203,6 @@ fun SettingsScreen(
                 )
             }
             InfoRow(R.string.version_label, BuildConfig.VERSION_NAME)
-
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-
-            ActionRow(R.string.import_opml, icon = true) { onImportOpml() }
 
             Spacer(Modifier.padding(bottom = 24.dp))
         }

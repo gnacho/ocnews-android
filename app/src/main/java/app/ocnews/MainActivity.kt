@@ -119,6 +119,13 @@ class MainActivity : ComponentActivity() {
                         SettingsScreen(
                             viewModel = settingsViewModel,
                             onImportOpml = { opmlLauncher.launch(arrayOf("*/*")) },
+                            onCreateFolder = { name ->
+                                lifecycleScope.launch {
+                                    runCatching { repository.createFolder(name) }
+                                        .onFailure { Toast.makeText(context, it.message ?: "Error", Toast.LENGTH_SHORT).show() }
+                                }
+                            },
+                            addFeedViewModel = addFeedViewModel,
                             onBack = { showSettings = false },
                         )
                     } else {
@@ -144,6 +151,7 @@ class MainActivity : ComponentActivity() {
                             starredCount = starredCount,
                             serverUrl = currentSession.serverUrl,
                             settings = settings,
+                            isDark = darkTheme,
                             searchQuery = searchQuery,
                             onSearchQueryChange = listViewModel::setSearchQuery,
                             fullContent = fullContent,

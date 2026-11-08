@@ -10,6 +10,7 @@
 
     <!-- Navigation / list -->
     <string name="all_articles">All articles</string>
+    <string name="unread_articles">Unread articles</string>
     <string name="starred">Starred</string>
     <string name="import_opml">Import OPML</string>
     <string name="settings">Settings</string>
@@ -71,6 +72,9 @@
 
     <!-- Settings -->
     <string name="section_general">General</string>
+    <string name="new_feed">New feed</string>
+    <string name="new_folder">New folder</string>
+    <string name="folder_name">Folder name</string>
     <string name="sync_on_start">Sync on start</string>
     <string name="only_unread_default">Show only unread articles</string>
     <string name="swipe_right_action">Swipe right action</string>
