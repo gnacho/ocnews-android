@@ -1,0 +1,38 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+release/
+proguard/
+
+# Logs
+*.log
+hs_err_pid*
+
+# macOS
+.DS_Store
+
+# Keystore / secretos
+*.jks
+*.keystore
+keystore.properties
