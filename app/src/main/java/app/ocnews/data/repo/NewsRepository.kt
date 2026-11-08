@@ -84,6 +84,7 @@ class NewsRepository(
     fun observeItems(): Flow<List<ItemEntity>> = itemDao.getAll()
     fun observeUnread(): Flow<List<ItemEntity>> = itemDao.getUnread()
     fun observeStarred(): Flow<List<ItemEntity>> = itemDao.getStarred()
+    fun observeItemsByFeed(feedId: Long): Flow<List<ItemEntity>> = itemDao.getByFeed(feedId)
 
     suspend fun addFeed(url: String, folderId: Long? = null) {
         val api = currentApi() ?: return
