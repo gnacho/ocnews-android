@@ -15,7 +15,8 @@ data class LoginUiState(
     val username: String = "",
     val token: String = "",
     val loading: Boolean = false,
-    val error: String? = null,
+    val errorRes: Int? = null,
+    val errorArgs: List<Any> = emptyList(),
     val loggedIn: Boolean = false,
 )
 
@@ -31,10 +32,12 @@ class LoginViewModel(private val repository: NewsRepository) : ViewModel() {
         val s = _state.value
         if (s.loading) return
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null) }
+            _state.update { it.copy(loading = true, errorRes = null, errorArgs = emptyList()) }
             when (val result = repository.login(s.serverUrl.trim(), s.username.trim(), s.token.trim())) {
                 LoginResult.Success -> _state.update { it.copy(loading = false, loggedIn = true) }
-                is LoginResult.Error -> _state.update { it.copy(loading = false, error = result.message) }
+                is LoginResult.Error -> _state.update {
+                    it.copy(loading = false, errorRes = result.messageRes, errorArgs = result.args)
+                }
             }
         }
     }

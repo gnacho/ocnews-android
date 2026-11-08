@@ -1,5 +1,6 @@
 package app.ocnews.ui.addfeed
 
+import app.ocnews.R
 import app.ocnews.data.remote.dto.DiscoveredFeedDto
 import app.ocnews.data.remote.dto.DiscoverResponse
 import app.ocnews.data.repo.NewsRepository
@@ -44,7 +45,7 @@ class AddFeedViewModelTest {
             val vm = viewModel(api)
             vm.add()
             advanceUntilIdle()
-            assertEquals("Enter a URL", vm.state.value.error)
+            assertEquals(R.string.err_enter_url, vm.state.value.errorRes)
             assertTrue(api.createFeedCalls.isEmpty())
         } finally {
             Dispatchers.resetMain()
@@ -102,7 +103,7 @@ class AddFeedViewModelTest {
             advanceUntilIdle()
 
             assertTrue(vm.state.value.discovered.isEmpty())
-            assertEquals("No feeds found at this URL", vm.state.value.error)
+            assertEquals(R.string.err_no_feeds, vm.state.value.errorRes)
         } finally {
             Dispatchers.resetMain()
         }

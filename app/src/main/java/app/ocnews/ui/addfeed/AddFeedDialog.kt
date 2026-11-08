@@ -14,9 +14,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.ocnews.R
 
 @Composable
 fun AddFeedDialog(viewModel: AddFeedViewModel, onDismiss: () -> Unit) {
@@ -24,20 +26,20 @@ fun AddFeedDialog(viewModel: AddFeedViewModel, onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add feed") },
+        title = { Text(stringResource(R.string.add_feed)) },
         text = {
             Column {
                 if (state.discovered.isEmpty()) {
                     OutlinedTextField(
                         value = state.url,
                         onValueChange = viewModel::onUrlChange,
-                        label = { Text("Feed or site URL") },
+                        label = { Text(stringResource(R.string.feed_or_site_url)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
                     Text(
-                        text = "Multiple feeds found. Choose one:",
+                        text = stringResource(R.string.multiple_feeds),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(8.dp))
@@ -54,26 +56,32 @@ fun AddFeedDialog(viewModel: AddFeedViewModel, onDismiss: () -> Unit) {
                         )
                     }
                 }
-                state.error?.let { error ->
+                state.errorRes?.let { errorRes ->
                     Spacer(Modifier.height(8.dp))
-                    Text(text = error, color = MaterialTheme.colorScheme.error)
+                    Text(
+                        text = stringResource(errorRes, *state.errorArgs.toTypedArray()),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
                 if (state.loading) {
                     Spacer(Modifier.height(8.dp))
-                    Text("Working…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.working), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         },
         confirmButton = {
             if (state.discovered.isEmpty()) {
                 TextButton(onClick = viewModel::add, enabled = !state.loading) {
-                    Text("Add")
+                    Text(stringResource(R.string.add))
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(if (state.done) "Done" else "Cancel")
+                Text(
+                    if (state.done) stringResource(R.string.done)
+                    else stringResource(R.string.cancel)
+                )
             }
         },
     )

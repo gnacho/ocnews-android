@@ -1,5 +1,6 @@
 package app.ocnews.data.repo
 
+import app.ocnews.R
 import app.ocnews.data.local.FeedDao
 import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderDao
@@ -40,7 +41,7 @@ class NewsRepository(
 
     sealed interface LoginResult {
         data object Success : LoginResult
-        data class Error(val message: String) : LoginResult
+        data class Error(val messageRes: Int, val args: List<Any> = emptyList()) : LoginResult
     }
 
     suspend fun login(serverUrl: String, username: String, token: String): LoginResult {
@@ -48,7 +49,7 @@ class NewsRepository(
         return try {
             val version = apiFactory(newSession).version()
             if (version.version == "0") {
-                LoginResult.Error("News app reports version 0")
+                LoginResult.Error(R.string.err_version_zero)
             } else {
                 val previous = sessionStore.session.first()
                 val changedAccount =
@@ -58,14 +59,13 @@ class NewsRepository(
                 LoginResult.Success
             }
         } catch (e: HttpException) {
-            val msg = if (e.code() == 401) {
-                "Invalid username or app token"
+            if (e.code() == 401) {
+                LoginResult.Error(R.string.err_invalid_credentials)
             } else {
-                "Server error (${e.code()})"
+                LoginResult.Error(R.string.err_server, listOf(e.code()))
             }
-            LoginResult.Error(msg)
         } catch (e: Exception) {
-            LoginResult.Error(e.message ?: "Login failed")
+            LoginResult.Error(R.string.err_login_failed)
         }
     }
 
