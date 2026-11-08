@@ -2,6 +2,7 @@ package app.ocnews.data.repo
 
 import app.ocnews.data.remote.dto.DiscoveredFeedDto
 import app.ocnews.data.remote.dto.DiscoverResponse
+import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.remote.dto.FeedDto
 import app.ocnews.data.remote.dto.FeedsResponse
 import app.ocnews.data.remote.dto.FolderDto
@@ -96,6 +97,20 @@ class NewsRepositoryCrudTest {
         repo.renameFeed(5, "New title")
 
         assertEquals(listOf(5L to "New title"), api.renameFeedCalls)
+    }
+
+    @Test
+    fun `renameFolder calls api and updates local dao`() = runTest {
+        val folderDao = FakeFolderDao().apply {
+            folders.add(FolderEntity(5, "Old", null))
+        }
+        val api = FakeNewsApi()
+        val (repo) = loggedInRepo(api, folderDao = folderDao)
+
+        repo.renameFolder(5, "New")
+
+        assertEquals(listOf(5L to "New"), api.renameFolderCalls)
+        assertEquals("New", folderDao.folders.first().name)
     }
 
     @Test

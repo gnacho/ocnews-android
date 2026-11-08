@@ -108,6 +108,9 @@ class FakeFolderDao : FolderDao {
     override fun getAll(): Flow<List<FolderEntity>> = emptyFlow()
     override suspend fun getById(id: Long): FolderEntity? = null
     override suspend fun getByName(name: String): FolderEntity? = folders.firstOrNull { it.name == name }
+    override suspend fun rename(id: Long, name: String) {
+        folders.replaceAll { if (it.id == id) it.copy(name = name) else it }
+    }
     override suspend fun deleteById(id: Long) {}
     override suspend fun clear() { folders.clear() }
 }
@@ -147,6 +150,7 @@ class FakeNewsApi(
     val deleteFolderCalls = mutableListOf<Long>()
     val deleteFeedCalls = mutableListOf<Long>()
     val renameFeedCalls = mutableListOf<Pair<Long, String>>()
+    val renameFolderCalls = mutableListOf<Pair<Long, String>>()
     val moveFeedCalls = mutableListOf<Pair<Long, Long>>()
     var markAllReadCalls = 0
 
@@ -157,7 +161,7 @@ class FakeNewsApi(
         createFolderCalls.add(body.name)
         return createFolderResponse
     }
-    override suspend fun renameFolder(id: Long, body: RenameFolderRequest) {}
+    override suspend fun renameFolder(id: Long, body: RenameFolderRequest) { renameFolderCalls.add(id to body.name) }
     override suspend fun deleteFolder(id: Long) { deleteFolderCalls.add(id) }
     override suspend fun markFolderRead(id: Long) {}
     override suspend fun feeds() = feedsResponse
