@@ -4,6 +4,15 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.22] - 2026-11-08
+
+### Changed
+
+- The reader now respects the dark theme (dark background and text in the WebView).
+- The top-bar title is the All / Unread articles toggle; the duplicated toggle button is gone.
+- Drawer is more compact (smaller fonts, less vertical space); About moved to Settings.
+- Settings General now has New feed, New folder and Import OPML.
+
 ## [0.1.20] - 2026-11-08
 
 ### Changed
