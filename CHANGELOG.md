@@ -4,6 +4,18 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.14] - 2026-11-08
+
+### Added
+
+- Search: filter the article list by title or author from the top bar.
+- Swipe between articles in the reader (left/right to move to the next/previous one).
+
+### Fixed
+
+- Out-of-memory crash on large feeds: unread and starred counts now use `SELECT COUNT(*)` instead of loading full items (with their HTML bodies).
+- No more crash when a sync fails (e.g. a transient HTTP 502); the app logs it and keeps the cached list.
+
 ## [0.1.12] - 2026-11-08
 
 ### Added
