@@ -4,6 +4,18 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.18] - 2026-11-08
+
+### Changed
+
+- Reader: the hero image now sits below the title/author/time.
+- Home list: each article shows a thumbnail on the right (same height as the row), and swipe left marks it read while swipe right stars it.
+- The star and read buttons change clearly: starred shows a gold filled star, read shows a filled check versus an empty circle when unread.
+
+### Fixed
+
+- The reader no longer switches articles when you scroll down (the pager now only reacts to deliberate horizontal swipes).
+
 ## [0.1.16] - 2026-11-08
 
 ### Added
