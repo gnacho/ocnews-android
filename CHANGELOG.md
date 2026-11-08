@@ -4,6 +4,18 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.12] - 2026-11-08
+
+### Added
+
+- Redesigned drawer: leading icons and trailing counts (unread per feed/folder, total unread, starred), clickable folders, bottom actions (Import OPML, Settings, About, Log out) and a user avatar in the top bar.
+- Redesigned reader: single top bar with the source feed name, share and overflow, a hero image at the top, and a floating action bar (star, read, share).
+- System back in the reader returns to the article list.
+
+### Fixed
+
+- Article images now load: the ocnews `/img?u=` proxy returns 403, so the original CDN image URL is unpacked from the `u` parameter (and the body's image srcs are rewritten) for both the hero image and inline images.
+
 ## [0.1.10] - 2026-11-08
 
 ### Added
