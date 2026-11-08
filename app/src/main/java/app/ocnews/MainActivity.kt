@@ -3,23 +3,29 @@ package app.ocnews
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.ocnews.ui.login.LoginScreen
+import app.ocnews.ui.login.LoginViewModel
 
-// Placeholder: la UI real (login, lista, lector...) viene en fases posteriores.
 class MainActivity : ComponentActivity() {
+
+    private val loginViewModel: LoginViewModel by viewModels {
+        LoginViewModel.factory((application as OcnewsApplication).container.repository)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            Placeholder()
+            val state by loginViewModel.state.collectAsStateWithLifecycle()
+            LoginScreen(
+                state = state,
+                onServerUrlChange = loginViewModel::onServerUrlChange,
+                onUsernameChange = loginViewModel::onUsernameChange,
+                onTokenChange = loginViewModel::onTokenChange,
+                onLogin = loginViewModel::login,
+            )
         }
-    }
-}
-
-@Composable
-private fun Placeholder() {
-    MaterialTheme {
-        Text(text = "ocnews")
     }
 }
