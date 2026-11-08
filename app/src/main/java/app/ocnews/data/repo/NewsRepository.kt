@@ -111,6 +111,7 @@ class NewsRepository(
     suspend fun renameFolder(id: Long, name: String) {
         val api = currentApi() ?: return
         api.renameFolder(id, RenameFolderRequest(name))
+        folderDao.rename(id, name)
     }
 
     suspend fun deleteFolder(id: Long) {
