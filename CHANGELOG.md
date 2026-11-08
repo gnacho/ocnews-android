@@ -4,6 +4,22 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.32] - 2026-11-09
+
+### Changed
+
+- The list, the unread view and the starred view read a lightweight projection without the article HTML, and the thumbnail is precomputed at sync time, so marking an article read or starred no longer reloads every article body.
+- Body search now runs in SQLite and returns only matching ids.
+- The reader loads the full article on demand, one page at a time.
+
+### Fixed
+
+- Opening a long article no longer freezes the reader: the HTML is parsed off the main thread and paragraphs are laid out lazily.
+
+### Upgrade notes
+
+- Room schema v2 adds a `thumbnailUrl` column. Existing rows are migrated in place and their thumbnails are backfilled in the background on first launch.
+
 ## [0.1.30] - 2026-11-08
 
 ### Changed

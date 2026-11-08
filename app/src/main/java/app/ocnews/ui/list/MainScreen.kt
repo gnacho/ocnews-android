@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.WatchLater
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -62,12 +64,15 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -91,6 +96,7 @@ import app.ocnews.R
 import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemEntity
+import app.ocnews.data.local.ItemSummary
 import app.ocnews.data.settings.AppSettings
 import app.ocnews.data.settings.FeedListStyle
 import app.ocnews.data.settings.SwipeAction
@@ -101,7 +107,9 @@ import app.ocnews.util.format
 import app.ocnews.util.relativeTime
 import app.ocnews.util.unpackImageUrl
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val StarGold = Color(0xFFFFB300)
 
@@ -110,7 +118,7 @@ private val StarGold = Color(0xFFFFB300)
 fun MainScreen(
     folders: List<FolderEntity>,
     feeds: List<FeedEntity>,
-    items: List<ItemEntity>,
+    items: List<ItemSummary>,
     scope: Scope,
     onlyUnread: Boolean,
     syncing: Boolean,
@@ -122,12 +130,14 @@ fun MainScreen(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     fullContent: Map<Long, String>,
+    itemDetails: Map<Long, ItemEntity>,
     onFetchFull: (Long) -> Unit,
+    onLoadDetail: (Long) -> Unit,
     addFeedViewModel: AddFeedViewModel,
     onSelectScope: (Scope) -> Unit,
     onToggleOnlyUnread: () -> Unit,
-    onToggleRead: (ItemEntity) -> Unit,
-    onToggleStarred: (ItemEntity) -> Unit,
+    onToggleRead: (Long, Boolean) -> Unit,
+    onToggleStarred: (Long, Boolean) -> Unit,
     onSync: () -> Unit,
     onLogout: () -> Unit,
     onMarkAllRead: () -> Unit,
@@ -310,6 +320,8 @@ fun MainScreen(
                 serverUrl = serverUrl,
                 isDark = isDark,
                 fullContent = fullContent,
+                itemDetails = itemDetails,
+                onLoadDetail = onLoadDetail,
                 onFetchFull = onFetchFull,
                 onBack = { selectedIndex = null },
                 onToggleRead = onToggleRead,
@@ -471,14 +483,14 @@ private fun DrawerFeedRow(
 
 @Composable
 private fun ArticleList(
-    items: List<ItemEntity>,
+    items: List<ItemSummary>,
     feeds: List<FeedEntity>,
     swipeRight: SwipeAction,
     swipeLeft: SwipeAction,
     feedListStyle: FeedListStyle,
-    onToggleRead: (ItemEntity) -> Unit,
-    onToggleStarred: (ItemEntity) -> Unit,
-    onItemClick: (ItemEntity) -> Unit,
+    onToggleRead: (Long, Boolean) -> Unit,
+    onToggleStarred: (Long, Boolean) -> Unit,
+    onItemClick: (ItemSummary) -> Unit,
 ) {
     if (items.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -506,26 +518,22 @@ private fun ArticleList(
 
 @Composable
 private fun ArticleRow(
-    item: ItemEntity,
+    item: ItemSummary,
     feed: FeedEntity?,
     swipeRight: SwipeAction,
     swipeLeft: SwipeAction,
     showThumbnail: Boolean,
     onClick: () -> Unit,
-    onToggleRead: (ItemEntity) -> Unit,
-    onToggleStarred: (ItemEntity) -> Unit,
+    onToggleRead: (Long, Boolean) -> Unit,
+    onToggleStarred: (Long, Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     var offsetX by remember { mutableStateOf(0f) }
-    val thumbnail = if (showThumbnail) {
-        item.mediaThumbnail ?: firstImageUrl(item.body)?.let { unpackImageUrl(it) }
-    } else {
-        null
-    }
+    val thumbnail = if (showThumbnail) item.imageUrl else null
     fun runAction(action: SwipeAction) {
         when (action) {
-            SwipeAction.STAR -> if (!item.starred) onToggleStarred(item)
-            SwipeAction.READ -> if (item.unread) onToggleRead(item)
+            SwipeAction.STAR -> if (!item.starred) onToggleStarred(item.id, item.starred)
+            SwipeAction.READ -> if (item.unread) onToggleRead(item.id, item.unread)
             SwipeAction.NOTHING -> Unit
         }
     }
@@ -609,16 +617,18 @@ private fun ArticleRow(
 
 @Composable
 private fun Reader(
-    items: List<ItemEntity>,
+    items: List<ItemSummary>,
     initialIndex: Int,
     feeds: List<FeedEntity>,
     serverUrl: String,
     isDark: Boolean,
     fullContent: Map<Long, String>,
+    itemDetails: Map<Long, ItemEntity>,
+    onLoadDetail: (Long) -> Unit,
     onFetchFull: (Long) -> Unit,
     onBack: () -> Unit,
-    onToggleRead: (ItemEntity) -> Unit,
-    onToggleStarred: (ItemEntity) -> Unit,
+    onToggleRead: (Long, Boolean) -> Unit,
+    onToggleStarred: (Long, Boolean) -> Unit,
 ) {
     BackHandler(onBack = onBack)
     if (items.isEmpty()) {
@@ -627,15 +637,17 @@ private fun Reader(
     }
     val pagerState = rememberPagerState(initialPage = initialIndex.coerceIn(0, items.lastIndex)) { items.size }
     val current = items.getOrNull(pagerState.currentPage) ?: items.first()
+    val currentDetail = itemDetails[current.id]
     val feedTitle = feeds.firstOrNull { it.id == current.feedId }?.title
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ReaderTopBar(
                 item = current,
+                unread = currentDetail?.unread ?: current.unread,
                 feedTitle = feedTitle,
                 onBack = onBack,
-                onToggleRead = onToggleRead,
+                onToggleRead = { onToggleRead(current.id, currentDetail?.unread ?: current.unread) },
                 onFetchFull = { onFetchFull(current.id) },
             )
             HorizontalPager(
@@ -644,17 +656,21 @@ private fun Reader(
                 key = { page -> items[page].id },
             ) { page ->
                 val pageItem = items[page]
+                val detail = itemDetails[pageItem.id]
+                LaunchedEffect(pageItem.id) { onLoadDetail(pageItem.id) }
                 ReaderPage(
                     item = pageItem,
                     isDark = isDark,
-                    body = fullContent[pageItem.id] ?: pageItem.body,
+                    body = fullContent[pageItem.id] ?: detail?.body,
                 )
             }
         }
         FloatingActions(
             item = current,
-            onToggleRead = onToggleRead,
-            onToggleStarred = onToggleStarred,
+            unread = currentDetail?.unread ?: current.unread,
+            starred = currentDetail?.starred ?: current.starred,
+            onToggleRead = { onToggleRead(current.id, currentDetail?.unread ?: current.unread) },
+            onToggleStarred = { onToggleStarred(current.id, currentDetail?.starred ?: current.starred) },
             modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp),
         )
     }
@@ -662,10 +678,11 @@ private fun Reader(
 
 @Composable
 private fun ReaderTopBar(
-    item: ItemEntity,
+    item: ItemSummary,
+    unread: Boolean,
     feedTitle: String?,
     onBack: () -> Unit,
-    onToggleRead: (ItemEntity) -> Unit,
+    onToggleRead: () -> Unit,
     onFetchFull: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -732,13 +749,13 @@ private fun ReaderTopBar(
                     text = {
                         Text(
                             stringResource(
-                                if (item.unread) R.string.mark_read else R.string.mark_unread
+                                if (unread) R.string.mark_read else R.string.mark_unread
                             )
                         )
                     },
                     onClick = {
                         menuOpen = false
-                        onToggleRead(item)
+                        onToggleRead()
                     },
                 )
             }
@@ -747,57 +764,83 @@ private fun ReaderTopBar(
 }
 
 @Composable
-private fun ReaderPage(item: ItemEntity, isDark: Boolean, body: String) {
+private fun ReaderPage(item: ItemSummary, isDark: Boolean, body: String?) {
     val context = LocalContext.current
-    val heroUrl = item.mediaThumbnail ?: firstImageUrl(body)?.let { unpackImageUrl(it) }
     val linkColor = MaterialTheme.colorScheme.primary
-    val text = remember(body, linkColor) { htmlToAnnotated(stripImages(body), linkColor) }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
-    ) {
-        Text(
-            text = item.title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        if (item.author.isNotBlank()) {
-            Text(
-                text = item.author,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Text(
-            text = relativeTime(item.pubDate).format(context),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (heroUrl != null) {
-            Spacer(Modifier.height(12.dp))
-            AsyncImage(
-                model = heroUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(240.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-        if (text.isNotEmpty()) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyLarge,
-                lineHeight = 26.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+    // Split the article into blocks so a huge body is laid out lazily instead of
+    // measuring a single Text of tens of thousands of characters.
+    val blocks = remember(body) { body?.let { splitHtmlBlocks(it) } }
+    // Parsing HTML takes hundreds of milliseconds, so keep it off the main thread.
+    val paragraphs by produceState<List<AnnotatedString>?>(initialValue = null, blocks, linkColor) {
+        value = blocks?.let { list ->
+            withContext(Dispatchers.Default) {
+                list.map { htmlToAnnotated(stripImages(it), linkColor) }.filter { it.isNotEmpty() }
+            }
         }
     }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
+    ) {
+        item {
+            Column {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (item.author.isNotBlank()) {
+                    Text(
+                        text = item.author,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = relativeTime(item.pubDate).format(context),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                item.imageUrl?.let { heroUrl ->
+                    Spacer(Modifier.height(12.dp))
+                    AsyncImage(
+                        model = heroUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+        }
+        val ready = paragraphs
+        when {
+            ready == null && body != null -> item {
+                CircularProgressIndicator(Modifier.padding(top = 8.dp))
+            }
+            ready != null -> items(ready.size) { index ->
+                Text(
+                    text = ready[index],
+                    style = MaterialTheme.typography.bodyLarge,
+                    lineHeight = 26.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
+        }
+    }
+}
+
+// Splits an article body on block-level closing tags so each paragraph can be
+// parsed and laid out on its own. Inline tags and <br> stay inside a block.
+private fun splitHtmlBlocks(html: String): List<String> {
+    val marked = Regex("""(?i)</p>|</div>|</h[1-6]>|</li>|</blockquote>|</td>|</tr>""")
+        .replace(html) { match -> match.value + "\u0000" }
+    return marked.split("\u0000").map { it.trim() }.filter { it.isNotEmpty() }
 }
 
 // Converts a (image-stripped) HTML body into a Compose AnnotatedString keeping bold,
@@ -837,9 +880,11 @@ private fun stripImages(html: String): String =
 
 @Composable
 private fun FloatingActions(
-    item: ItemEntity,
-    onToggleRead: (ItemEntity) -> Unit,
-    onToggleStarred: (ItemEntity) -> Unit,
+    item: ItemSummary,
+    unread: Boolean,
+    starred: Boolean,
+    onToggleRead: () -> Unit,
+    onToggleStarred: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -850,20 +895,20 @@ private fun FloatingActions(
         tonalElevation = 6.dp,
     ) {
         Row(Modifier.padding(horizontal = 4.dp)) {
-            IconButton(onClick = { onToggleStarred(item) }) {
+            IconButton(onClick = onToggleStarred) {
                 Icon(
-                    imageVector = if (item.starred) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                    imageVector = if (starred) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     contentDescription = stringResource(R.string.star),
-                    tint = if (item.starred) StarGold else LocalContentColor.current,
+                    tint = if (starred) StarGold else LocalContentColor.current,
                 )
             }
-            IconButton(onClick = { onToggleRead(item) }) {
+            IconButton(onClick = onToggleRead) {
                 Icon(
-                    imageVector = if (item.unread) Icons.Outlined.RadioButtonUnchecked else Icons.Filled.CheckCircle,
+                    imageVector = if (unread) Icons.Outlined.RadioButtonUnchecked else Icons.Filled.CheckCircle,
                     contentDescription = stringResource(
-                        if (item.unread) R.string.mark_read else R.string.mark_unread
+                        if (unread) R.string.mark_read else R.string.mark_unread
                     ),
-                    tint = if (item.unread) LocalContentColor.current else MaterialTheme.colorScheme.primary,
+                    tint = if (unread) LocalContentColor.current else MaterialTheme.colorScheme.primary,
                 )
             }
             IconButton(

@@ -26,6 +26,9 @@ data class ItemEntity(
     val enclosureLink: String?,
     val mediaThumbnail: String?,
     val mediaDescription: String?,
+    // First image URL extracted from the body at sync time, so list queries
+    // never need to load the (large) body column.
+    val thumbnailUrl: String? = null,
     val feedId: Long,
     val unread: Boolean,
     val starred: Boolean,
