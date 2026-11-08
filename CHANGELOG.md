@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.8] - 2026-11-08
+
+### Fixed
+
+- Login fields (server URL, username, app token) no longer autocorrect or auto-capitalize, so typing an app token (a space-separated passphrase) or the case-sensitive username no longer causes a spurious "Invalid username or app token".
+
 ## [0.1.6] - 2026-11-08
 
 ### Fixed
