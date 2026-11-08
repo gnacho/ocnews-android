@@ -39,6 +39,9 @@ interface ItemDao {
     @Query("UPDATE item SET unread = :unread, unreadPending = 1 WHERE id = :id")
     suspend fun setUnread(id: Long, unread: Boolean)
 
+    @Query("UPDATE item SET unread = 0, unreadPending = 0")
+    suspend fun markAllRead()
+
     @Query("UPDATE item SET starred = :starred, starredPending = 1 WHERE id = :id")
     suspend fun setStarred(id: Long, starred: Boolean)
 

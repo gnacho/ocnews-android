@@ -23,7 +23,12 @@ import app.ocnews.data.remote.dto.VersionResponse
 import app.ocnews.data.session.Session
 import app.ocnews.data.session.SessionStore
 import app.ocnews.data.settings.AppSettings
+import app.ocnews.data.settings.FeedListStyle
+import app.ocnews.data.settings.SearchScope
 import app.ocnews.data.settings.SettingsStore
+import app.ocnews.data.settings.SortOrder
+import app.ocnews.data.settings.SwipeAction
+import app.ocnews.data.settings.TextSize
 import app.ocnews.data.settings.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -100,6 +105,14 @@ class FakeSettingsStore : SettingsStore {
     override suspend fun setSyncInterval(minutes: Int) {
         state.value = state.value.copy(syncIntervalMinutes = minutes)
     }
+    override suspend fun setSyncOnStart(value: Boolean) { state.value = state.value.copy(syncOnStart = value) }
+    override suspend fun setOnlyUnread(value: Boolean) { state.value = state.value.copy(onlyUnread = value) }
+    override suspend fun setSwipeRight(action: SwipeAction) { state.value = state.value.copy(swipeRight = action) }
+    override suspend fun setSwipeLeft(action: SwipeAction) { state.value = state.value.copy(swipeLeft = action) }
+    override suspend fun setSortOrder(order: SortOrder) { state.value = state.value.copy(sortOrder = order) }
+    override suspend fun setSearchIn(scope: SearchScope) { state.value = state.value.copy(searchIn = scope) }
+    override suspend fun setFeedListStyle(style: FeedListStyle) { state.value = state.value.copy(feedListStyle = style) }
+    override suspend fun setTextSize(size: TextSize) { state.value = state.value.copy(textSize = size) }
 }
 
 class FakeItemDao : ItemDao {
@@ -119,6 +132,9 @@ class FakeItemDao : ItemDao {
     override fun observeUnreadCount(): Flow<Int> = kotlinx.coroutines.flow.flowOf(items.count { it.unread })
     override fun observeStarredCount(): Flow<Int> = kotlinx.coroutines.flow.flowOf(items.count { it.starred })
     override suspend fun setUnread(id: Long, unread: Boolean) { setUnreadCalls.add(id to unread) }
+    override suspend fun markAllRead() {
+        for (i in items.indices) items[i] = items[i].copy(unread = false, unreadPending = false)
+    }
     override suspend fun setStarred(id: Long, starred: Boolean) { setStarredCalls.add(id to starred) }
     override suspend fun getPendingUnread(): List<ItemEntity> = items.filter { it.unreadPending }
     override suspend fun getPendingStarred(): List<ItemEntity> = items.filter { it.starredPending }

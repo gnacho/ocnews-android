@@ -12,14 +12,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import app.ocnews.data.settings.AppSettings
+import app.ocnews.data.settings.TextSize
 import app.ocnews.data.settings.ThemeMode
 import app.ocnews.sync.SyncScheduler
 import app.ocnews.ui.addfeed.AddFeedViewModel
@@ -40,7 +44,7 @@ class MainActivity : ComponentActivity() {
         LoginViewModel.factory(repository)
     }
     private val listViewModel: ListViewModel by viewModels {
-        ListViewModel.factory(repository)
+        ListViewModel.factory(repository, settingsStore)
     }
     private val addFeedViewModel: AddFeedViewModel by viewModels {
         AddFeedViewModel.factory(repository)
@@ -58,7 +62,16 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
-            MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
+            val fontScale = when (settings.textSize) {
+                TextSize.SMALL -> 0.88f
+                TextSize.DEFAULT -> 1f
+                TextSize.LARGE -> 1.15f
+            }
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(density.density, density.fontScale * fontScale),
+            ) {
+                MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
                 val session by repository.session.collectAsStateWithLifecycle(initialValue = null)
                 val currentSession = session
 
@@ -77,9 +90,35 @@ class MainActivity : ComponentActivity() {
                         SyncScheduler.schedule(this@MainActivity, settings.syncIntervalMinutes.toLong())
                     }
 
+                    val context = LocalContext.current
+                    val opmlLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.OpenDocument()
+                    ) { uri ->
+                        if (uri != null) {
+                            lifecycleScope.launch {
+                                val xml = context.contentResolver
+                                    .openInputStream(uri)
+                                    ?.bufferedReader()
+                                    ?.use { it.readText() }
+                                if (xml != null) {
+                                    val result = repository.importOpml(xml)
+                                    Toast.makeText(
+                                        context,
+                                        "Imported ${result.feedsAdded} feeds" +
+                                            if (result.foldersCreated > 0) " (${result.foldersCreated} folders)" else "",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                } else {
+                                    Toast.makeText(context, "Could not read file", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    }
+
                     if (showSettings) {
                         SettingsScreen(
                             viewModel = settingsViewModel,
+                            onImportOpml = { opmlLauncher.launch(arrayOf("*/*")) },
                             onBack = { showSettings = false },
                         )
                     } else {
@@ -94,31 +133,6 @@ class MainActivity : ComponentActivity() {
                         val searchQuery by listViewModel.searchQuery.collectAsStateWithLifecycle()
                         val fullContent by listViewModel.fullContent.collectAsStateWithLifecycle()
 
-                        val context = LocalContext.current
-                        val opmlLauncher = rememberLauncherForActivityResult(
-                            ActivityResultContracts.OpenDocument()
-                        ) { uri ->
-                            if (uri != null) {
-                                lifecycleScope.launch {
-                                    val xml = context.contentResolver
-                                        .openInputStream(uri)
-                                        ?.bufferedReader()
-                                        ?.use { it.readText() }
-                                    if (xml != null) {
-                                        val result = repository.importOpml(xml)
-                                        Toast.makeText(
-                                            context,
-                                            "Imported ${result.feedsAdded} feeds" +
-                                                if (result.foldersCreated > 0) " (${result.foldersCreated} folders)" else "",
-                                            Toast.LENGTH_LONG,
-                                        ).show()
-                                    } else {
-                                        Toast.makeText(context, "Could not read file", Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            }
-                        }
-
                         MainScreen(
                             folders = folders,
                             feeds = feeds,
@@ -128,8 +142,8 @@ class MainActivity : ComponentActivity() {
                             syncing = syncing,
                             unreadCount = unreadCount,
                             starredCount = starredCount,
-                            username = currentSession.username,
                             serverUrl = currentSession.serverUrl,
+                            settings = settings,
                             searchQuery = searchQuery,
                             onSearchQueryChange = listViewModel::setSearchQuery,
                             fullContent = fullContent,
@@ -141,7 +155,7 @@ class MainActivity : ComponentActivity() {
                             onToggleStarred = listViewModel::toggleStarred,
                             onSync = listViewModel::sync,
                             onLogout = listViewModel::logout,
-                            onImportOpml = { opmlLauncher.launch(arrayOf("*/*")) },
+                            onMarkAllRead = listViewModel::markAllRead,
                             onOpenSettings = { showSettings = true },
                         )
                     }
@@ -149,4 +163,5 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
 }

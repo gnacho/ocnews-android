@@ -7,10 +7,14 @@ import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemEntity
 import app.ocnews.data.repo.NewsRepository
+import app.ocnews.data.settings.SearchScope
+import app.ocnews.data.settings.SettingsStore
+import app.ocnews.data.settings.SortOrder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -30,6 +34,8 @@ fun filterItems(
     scope: Scope,
     onlyUnread: Boolean,
     query: String = "",
+    sort: SortOrder = SortOrder.NEWEST_FIRST,
+    searchIn: SearchScope = SearchScope.TITLE,
 ): List<ItemEntity> {
     val scoped = when (scope) {
         Scope.All -> items
@@ -42,26 +48,46 @@ fun filterItems(
     }
     val unreadFiltered = if (onlyUnread) scoped.filter { it.unread } else scoped
     val q = query.trim()
-    if (q.isEmpty()) return unreadFiltered
-    return unreadFiltered.filter {
-        it.title.contains(q, ignoreCase = true) || it.author.contains(q, ignoreCase = true)
+    val searched = if (q.isEmpty()) unreadFiltered else unreadFiltered.filter {
+        when (searchIn) {
+            SearchScope.TITLE -> it.title.contains(q, ignoreCase = true)
+            SearchScope.CONTENT -> it.body.contains(q, ignoreCase = true)
+            SearchScope.BOTH -> it.title.contains(q, ignoreCase = true) || it.body.contains(q, ignoreCase = true)
+        }
+    }
+    return when (sort) {
+        SortOrder.NEWEST_FIRST -> searched
+        SortOrder.OLDEST_FIRST -> searched.reversed()
     }
 }
 
-class ListViewModel(private val repository: NewsRepository) : ViewModel() {
+class ListViewModel(
+    private val repository: NewsRepository,
+    private val settingsStore: SettingsStore,
+) : ViewModel() {
     private val scope = MutableStateFlow<Scope>(Scope.All)
-    private val onlyUnread = MutableStateFlow(false)
     private val _searchQuery = MutableStateFlow("")
     private val _fullContent = MutableStateFlow<Map<Long, String>>(emptyMap())
     private val _syncing = MutableStateFlow(false)
 
+    private data class UiFilter(
+        val onlyUnread: Boolean,
+        val query: String,
+        val sort: SortOrder,
+        val searchIn: SearchScope,
+    )
+
     init {
-        // Sync on open: initial when empty, incremental otherwise.
-        sync()
+        viewModelScope.launch {
+            val s = settingsStore.settings.first()
+            if (s.syncOnStart) sync()
+        }
     }
 
     val scopeState: StateFlow<Scope> = scope
-    val onlyUnreadState: StateFlow<Boolean> = onlyUnread
+    val onlyUnreadState: StateFlow<Boolean> = settingsStore.settings
+        .map { it.onlyUnread }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val searchQuery: StateFlow<String> = _searchQuery
     val fullContent: StateFlow<Map<Long, String>> = _fullContent
     val syncing: StateFlow<Boolean> = _syncing
@@ -82,10 +108,11 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
         repository.observeItems(),
         repository.observeFeeds(),
         scope,
-        onlyUnread,
-        _searchQuery,
-    ) { list, feeds, s, u, q ->
-        filterItems(list, feeds, s, u, q)
+        combine(onlyUnreadState, _searchQuery, settingsStore.settings) { ou, q, s ->
+            UiFilter(ou, q, s.sortOrder, s.searchIn)
+        },
+    ) { list, feeds, sc, f ->
+        filterItems(list, feeds, sc, f.onlyUnread, f.query, f.sort, f.searchIn)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun selectScope(s: Scope) {
@@ -93,7 +120,7 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
     }
 
     fun toggleOnlyUnread() {
-        onlyUnread.value = !onlyUnread.value
+        viewModelScope.launch { settingsStore.setOnlyUnread(!onlyUnreadState.value) }
     }
 
     fun setSearchQuery(q: String) {
@@ -138,12 +165,22 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
         viewModelScope.launch { repository.logout() }
     }
 
+    fun markAllRead() {
+        viewModelScope.launch {
+            try {
+                repository.markAllRead()
+            } catch (e: Exception) {
+                println("OCNEWS markAllRead failed: ${e.message}")
+            }
+        }
+    }
+
     companion object {
-        fun factory(repository: NewsRepository): ViewModelProvider.Factory =
+        fun factory(repository: NewsRepository, settingsStore: SettingsStore): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    ListViewModel(repository) as T
+                    ListViewModel(repository, settingsStore) as T
             }
     }
 }

@@ -3,6 +3,7 @@ package app.ocnews.data.settings
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -12,37 +13,112 @@ import kotlinx.coroutines.flow.map
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+enum class SwipeAction { STAR, READ, NOTHING }
+
+enum class SortOrder { NEWEST_FIRST, OLDEST_FIRST }
+
+enum class SearchScope { TITLE, CONTENT, BOTH }
+
+enum class FeedListStyle { THUMBNAILS, TITLES_ONLY }
+
+enum class TextSize { SMALL, DEFAULT, LARGE }
+
 data class AppSettings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val syncIntervalMinutes: Int = 15,
+    val syncOnStart: Boolean = true,
+    val onlyUnread: Boolean = false,
+    val swipeRight: SwipeAction = SwipeAction.STAR,
+    val swipeLeft: SwipeAction = SwipeAction.READ,
+    val sortOrder: SortOrder = SortOrder.NEWEST_FIRST,
+    val searchIn: SearchScope = SearchScope.TITLE,
+    val feedListStyle: FeedListStyle = FeedListStyle.THUMBNAILS,
+    val textSize: TextSize = TextSize.DEFAULT,
 )
 
 interface SettingsStore {
     val settings: Flow<AppSettings>
     suspend fun setTheme(mode: ThemeMode)
     suspend fun setSyncInterval(minutes: Int)
+    suspend fun setSyncOnStart(value: Boolean)
+    suspend fun setOnlyUnread(value: Boolean)
+    suspend fun setSwipeRight(action: SwipeAction)
+    suspend fun setSwipeLeft(action: SwipeAction)
+    suspend fun setSortOrder(order: SortOrder)
+    suspend fun setSearchIn(scope: SearchScope)
+    suspend fun setFeedListStyle(style: FeedListStyle)
+    suspend fun setTextSize(size: TextSize)
 }
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-class DataStoreSettingsStore(private val context: Context) : SettingsStore {
-    private val keyTheme = stringPreferencesKey("theme")
-    private val keyInterval = intPreferencesKey("sync_interval_minutes")
+private inline fun <reified T : Enum<T>> decode(name: String?, default: T): T =
+    name?.let { runCatching { enumValueOf<T>(it) }.getOrNull() } ?: default
 
-    override val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
+class DataStoreSettingsStore(private val context: Context) : SettingsStore {
+    private val kTheme = stringPreferencesKey("theme")
+    private val kInterval = intPreferencesKey("sync_interval_minutes")
+    private val kSyncOnStart = booleanPreferencesKey("sync_on_start")
+    private val kOnlyUnread = booleanPreferencesKey("only_unread")
+    private val kSwipeRight = stringPreferencesKey("swipe_right")
+    private val kSwipeLeft = stringPreferencesKey("swipe_left")
+    private val kSortOrder = stringPreferencesKey("sort_order")
+    private val kSearchIn = stringPreferencesKey("search_in")
+    private val kFeedList = stringPreferencesKey("feed_list_style")
+    private val kTextSize = stringPreferencesKey("text_size")
+
+    override val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
-            theme = prefs[keyTheme]
-                ?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
-                ?: ThemeMode.SYSTEM,
-            syncIntervalMinutes = prefs[keyInterval] ?: 15,
+            theme = decode(p[kTheme], ThemeMode.SYSTEM),
+            syncIntervalMinutes = p[kInterval] ?: 15,
+            syncOnStart = p[kSyncOnStart] ?: true,
+            onlyUnread = p[kOnlyUnread] ?: false,
+            swipeRight = decode(p[kSwipeRight], SwipeAction.STAR),
+            swipeLeft = decode(p[kSwipeLeft], SwipeAction.READ),
+            sortOrder = decode(p[kSortOrder], SortOrder.NEWEST_FIRST),
+            searchIn = decode(p[kSearchIn], SearchScope.TITLE),
+            feedListStyle = decode(p[kFeedList], FeedListStyle.THUMBNAILS),
+            textSize = decode(p[kTextSize], TextSize.DEFAULT),
         )
     }
 
     override suspend fun setTheme(mode: ThemeMode) {
-        context.dataStore.edit { it[keyTheme] = mode.name }
+        context.dataStore.edit { it[kTheme] = mode.name }
     }
 
     override suspend fun setSyncInterval(minutes: Int) {
-        context.dataStore.edit { it[keyInterval] = minutes }
+        context.dataStore.edit { it[kInterval] = minutes }
+    }
+
+    override suspend fun setSyncOnStart(value: Boolean) {
+        context.dataStore.edit { it[kSyncOnStart] = value }
+    }
+
+    override suspend fun setOnlyUnread(value: Boolean) {
+        context.dataStore.edit { it[kOnlyUnread] = value }
+    }
+
+    override suspend fun setSwipeRight(action: SwipeAction) {
+        context.dataStore.edit { it[kSwipeRight] = action.name }
+    }
+
+    override suspend fun setSwipeLeft(action: SwipeAction) {
+        context.dataStore.edit { it[kSwipeLeft] = action.name }
+    }
+
+    override suspend fun setSortOrder(order: SortOrder) {
+        context.dataStore.edit { it[kSortOrder] = order.name }
+    }
+
+    override suspend fun setSearchIn(scope: SearchScope) {
+        context.dataStore.edit { it[kSearchIn] = scope.name }
+    }
+
+    override suspend fun setFeedListStyle(style: FeedListStyle) {
+        context.dataStore.edit { it[kFeedList] = style.name }
+    }
+
+    override suspend fun setTextSize(size: TextSize) {
+        context.dataStore.edit { it[kTextSize] = size.name }
     }
 }
