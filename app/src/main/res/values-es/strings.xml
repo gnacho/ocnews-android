@@ -13,10 +13,16 @@
     <string name="starred">Destacados</string>
     <string name="import_opml">Importar OPML</string>
     <string name="settings">Ajustes</string>
+    <string name="about">Acerca de</string>
+    <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>
     <string name="log_out">Cerrar sesión</string>
     <string name="no_articles">No hay artículos</string>
     <string name="add_feed">Añadir feed</string>
     <string name="open">Abrir</string>
+    <string name="share">Compartir</string>
+    <string name="open_original">Abrir original</string>
+    <string name="mark_read">Marcar leído</string>
+    <string name="mark_unread">Marcar no leído</string>
     <string name="back">Atrás</string>
     <string name="star">Destacar</string>
     <string name="all">Todos</string>

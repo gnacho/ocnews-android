@@ -7,6 +7,7 @@ import app.ocnews.testutil.FakeFolderDao
 import app.ocnews.testutil.FakeItemDao
 import app.ocnews.testutil.FakeNewsApi
 import app.ocnews.testutil.FakeSessionStore
+import app.ocnews.testutil.feed
 import app.ocnews.testutil.item
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,7 +31,7 @@ class ListViewModelTest {
             item(1, unread = true),
             item(2, unread = false, starred = true),
         )
-        assertEquals(items, filterItems(items, Scope.All, onlyUnread = false))
+        assertEquals(items, filterItems(items, emptyList(), Scope.All, onlyUnread = false))
     }
 
     @Test
@@ -39,7 +40,7 @@ class ListViewModelTest {
             item(1, unread = true),
             item(2, unread = false, starred = true),
         )
-        val result = filterItems(items, Scope.Starred, onlyUnread = false)
+        val result = filterItems(items, emptyList(), Scope.Starred, onlyUnread = false)
         assertEquals(listOf(2L), result.map { it.id })
     }
 
@@ -49,7 +50,21 @@ class ListViewModelTest {
             item(1, unread = true).copy(feedId = 10),
             item(2, unread = true).copy(feedId = 20),
         )
-        val result = filterItems(items, Scope.Feed(10), onlyUnread = false)
+        val result = filterItems(items, emptyList(), Scope.Feed(10), onlyUnread = false)
+        assertEquals(listOf(1L), result.map { it.id })
+    }
+
+    @Test
+    fun `filterItems folder keeps feeds in that folder`() {
+        val items = listOf(
+            item(1, unread = true).copy(feedId = 10),
+            item(2, unread = true).copy(feedId = 20),
+        )
+        val feeds = listOf(
+            feed(10, folderId = 100),
+            feed(20, folderId = 200),
+        )
+        val result = filterItems(items, feeds, Scope.Folder(100), onlyUnread = false)
         assertEquals(listOf(1L), result.map { it.id })
     }
 
@@ -59,7 +74,7 @@ class ListViewModelTest {
             item(1, unread = true),
             item(2, unread = false),
         )
-        val result = filterItems(items, Scope.All, onlyUnread = true)
+        val result = filterItems(items, emptyList(), Scope.All, onlyUnread = true)
         assertEquals(listOf(1L), result.map { it.id })
     }
 
