@@ -34,4 +34,9 @@ class AppContainer(context: Context) {
             ApiClient.create(session.baseUrl) { Credentials(session.username, session.token) }
         },
     )
+
+    // Moves a legacy plaintext token into the encrypted store (one-time).
+    suspend fun migrateLegacyToken() {
+        (sessionStore as? DataStoreSessionStore)?.migrateLegacyToken()
+    }
 }

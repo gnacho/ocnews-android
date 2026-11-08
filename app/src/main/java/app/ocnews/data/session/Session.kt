@@ -26,15 +26,21 @@ interface SessionStore {
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
-class DataStoreSessionStore(private val context: Context) : SessionStore {
+class DataStoreSessionStore(
+    private val context: Context,
+    private val cipher: TokenCipher = KeystoreTokenCipher(),
+) : SessionStore {
     private val keyUrl = stringPreferencesKey("server_url")
     private val keyUser = stringPreferencesKey("username")
-    private val keyToken = stringPreferencesKey("token")
+    private val keyTokenEncrypted = stringPreferencesKey("token_encrypted")
+    private val keyTokenLegacy = stringPreferencesKey("token")
 
     override val session: Flow<Session?> = context.dataStore.data.map { prefs ->
         val url = prefs[keyUrl] ?: return@map null
         val user = prefs[keyUser] ?: return@map null
-        val token = prefs[keyToken] ?: return@map null
+        val token = prefs[keyTokenEncrypted]?.let { cipher.decrypt(it) }
+            ?: prefs[keyTokenLegacy]
+            ?: return@map null
         Session(url, user, token)
     }
 
@@ -42,11 +48,24 @@ class DataStoreSessionStore(private val context: Context) : SessionStore {
         context.dataStore.edit { prefs ->
             prefs[keyUrl] = session.serverUrl
             prefs[keyUser] = session.username
-            prefs[keyToken] = session.token
+            prefs[keyTokenEncrypted] = cipher.encrypt(session.token)
+            prefs.remove(keyTokenLegacy)
         }
     }
 
     override suspend fun clear() {
         context.dataStore.edit { it.clear() }
+    }
+
+    // One-time migration: move a legacy plaintext token into the encrypted store
+    // and drop the plaintext copy. Runs on app start after the update.
+    suspend fun migrateLegacyToken() {
+        context.dataStore.edit { prefs ->
+            val legacy = prefs[keyTokenLegacy] ?: return@edit
+            if (prefs[keyTokenEncrypted] == null) {
+                prefs[keyTokenEncrypted] = cipher.encrypt(legacy)
+            }
+            prefs.remove(keyTokenLegacy)
+        }
     }
 }
