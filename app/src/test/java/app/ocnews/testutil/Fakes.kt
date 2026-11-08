@@ -1,0 +1,165 @@
+package app.ocnews.testutil
+
+import app.ocnews.data.local.FeedDao
+import app.ocnews.data.local.FeedEntity
+import app.ocnews.data.local.FolderDao
+import app.ocnews.data.local.FolderEntity
+import app.ocnews.data.local.ItemDao
+import app.ocnews.data.local.ItemEntity
+import app.ocnews.data.remote.NewsApi
+import app.ocnews.data.remote.dto.CreateFeedRequest
+import app.ocnews.data.remote.dto.CreateFolderRequest
+import app.ocnews.data.remote.dto.DiscoverResponse
+import app.ocnews.data.remote.dto.FeedsResponse
+import app.ocnews.data.remote.dto.FoldersResponse
+import app.ocnews.data.remote.dto.ItemsResponse
+import app.ocnews.data.remote.dto.MarkMultipleRequest
+import app.ocnews.data.remote.dto.MoveFeedRequest
+import app.ocnews.data.remote.dto.RenameFeedRequest
+import app.ocnews.data.remote.dto.RenameFolderRequest
+import app.ocnews.data.remote.dto.UserResponse
+import app.ocnews.data.remote.dto.VersionResponse
+import app.ocnews.data.session.Session
+import app.ocnews.data.session.SessionStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
+
+fun item(
+    id: Long,
+    unread: Boolean,
+    starred: Boolean = false,
+    unreadPending: Boolean = false,
+    starredPending: Boolean = false,
+    lastModified: Long = id,
+) = ItemEntity(
+    id = id,
+    guid = "g$id",
+    guidHash = "h$id",
+    url = "u$id",
+    title = "t$id",
+    author = "",
+    pubDate = id,
+    body = "",
+    enclosureMime = null,
+    enclosureLink = null,
+    mediaThumbnail = null,
+    mediaDescription = null,
+    feedId = 1,
+    unread = unread,
+    starred = starred,
+    filtered = false,
+    rtl = false,
+    lastModified = lastModified,
+    fingerprint = "f$id",
+    unreadPending = unreadPending,
+    starredPending = starredPending,
+)
+
+class FakeSessionStore : SessionStore {
+    private val state = MutableStateFlow<Session?>(null)
+    override val session: Flow<Session?> = state
+    override suspend fun save(session: Session) { state.value = session }
+    override suspend fun clear() { state.value = null }
+}
+
+class FakeItemDao : ItemDao {
+    val items = mutableListOf<ItemEntity>()
+    val clearUnread = mutableListOf<List<Long>>()
+    val clearStarred = mutableListOf<List<Long>>()
+    val setUnreadCalls = mutableListOf<Pair<Long, Boolean>>()
+    val setStarredCalls = mutableListOf<Pair<Long, Boolean>>()
+
+    override suspend fun upsertAll(items: List<ItemEntity>) { this.items.addAll(items) }
+    override fun getAll(): Flow<List<ItemEntity>> = emptyFlow()
+    override fun getUnread(): Flow<List<ItemEntity>> = emptyFlow()
+    override fun getStarred(): Flow<List<ItemEntity>> = emptyFlow()
+    override fun getByFeed(feedId: Long): Flow<List<ItemEntity>> = emptyFlow()
+    override suspend fun getById(id: Long): ItemEntity? = items.firstOrNull { it.id == id }
+    override suspend fun getHighestLastModified(): Long? = items.maxOfOrNull { it.lastModified }
+    override suspend fun setUnread(id: Long, unread: Boolean) { setUnreadCalls.add(id to unread) }
+    override suspend fun setStarred(id: Long, starred: Boolean) { setStarredCalls.add(id to starred) }
+    override suspend fun getPendingUnread(): List<ItemEntity> = items.filter { it.unreadPending }
+    override suspend fun getPendingStarred(): List<ItemEntity> = items.filter { it.starredPending }
+    override suspend fun clearUnreadPending(ids: List<Long>) { clearUnread.add(ids) }
+    override suspend fun clearStarredPending(ids: List<Long>) { clearStarred.add(ids) }
+    override suspend fun clear() { items.clear() }
+}
+
+class FakeFolderDao : FolderDao {
+    val folders = mutableListOf<FolderEntity>()
+    override suspend fun upsertAll(folders: List<FolderEntity>) { this.folders.addAll(folders) }
+    override fun getAll(): Flow<List<FolderEntity>> = emptyFlow()
+    override suspend fun getById(id: Long): FolderEntity? = null
+    override suspend fun deleteById(id: Long) {}
+    override suspend fun clear() { folders.clear() }
+}
+
+class FakeFeedDao : FeedDao {
+    val feeds = mutableListOf<FeedEntity>()
+    override suspend fun upsertAll(feeds: List<FeedEntity>) { this.feeds.addAll(feeds) }
+    override fun getAll(): Flow<List<FeedEntity>> = emptyFlow()
+    override fun getByFolder(folderId: Long): Flow<List<FeedEntity>> = emptyFlow()
+    override fun getRootFeeds(): Flow<List<FeedEntity>> = emptyFlow()
+    override suspend fun getById(id: Long): FeedEntity? = null
+    override suspend fun rename(id: Long, title: String) {}
+    override suspend fun move(id: Long, folderId: Long?) {}
+    override suspend fun deleteById(id: Long) {}
+    override suspend fun clear() { feeds.clear() }
+}
+
+class FakeNewsApi(
+    var versionResponse: String = "28.4.0",
+    var foldersResponse: FoldersResponse = FoldersResponse(emptyList()),
+    var feedsResponse: FeedsResponse = FeedsResponse(emptyList()),
+    var itemsResponse: ItemsResponse = ItemsResponse(emptyList()),
+    var itemsUpdatedResponse: ItemsResponse = ItemsResponse(emptyList()),
+) : NewsApi {
+    val markUnreadCalls = mutableListOf<List<Long>>()
+    val markReadCalls = mutableListOf<List<Long>>()
+    val markStarCalls = mutableListOf<List<Long>>()
+    val markUnstarCalls = mutableListOf<List<Long>>()
+    val itemsCalls = mutableListOf<Triple<Int, Boolean, Int>>() // type, getRead, batchSize
+    val itemsUpdatedLastModified = mutableListOf<Long>()
+
+    override suspend fun version() = VersionResponse(versionResponse)
+    override suspend fun user() = UserResponse("u", "User")
+    override suspend fun folders() = foldersResponse
+    override suspend fun createFolder(body: CreateFolderRequest) = FoldersResponse(emptyList())
+    override suspend fun renameFolder(id: Long, body: RenameFolderRequest) {}
+    override suspend fun deleteFolder(id: Long) {}
+    override suspend fun markFolderRead(id: Long) {}
+    override suspend fun feeds() = feedsResponse
+    override suspend fun createFeed(body: CreateFeedRequest) = FeedsResponse(emptyList())
+    override suspend fun discover(url: String) = DiscoverResponse(emptyList())
+    override suspend fun deleteFeed(id: Long) {}
+    override suspend fun moveFeed(id: Long, body: MoveFeedRequest) {}
+    override suspend fun renameFeed(id: Long, body: RenameFeedRequest) {}
+
+    override suspend fun items(
+        type: Int,
+        id: Long?,
+        getRead: Boolean,
+        batchSize: Int,
+        offset: Long?,
+        oldestFirst: Boolean,
+    ): ItemsResponse {
+        itemsCalls.add(Triple(type, getRead, batchSize))
+        return itemsResponse
+    }
+
+    override suspend fun itemsUpdated(lastModified: Long, type: Int, id: Long): ItemsResponse {
+        itemsUpdatedLastModified.add(lastModified)
+        return itemsUpdatedResponse
+    }
+
+    override suspend fun markRead(id: Long) {}
+    override suspend fun markUnread(id: Long) {}
+    override suspend fun markStar(id: Long) {}
+    override suspend fun markUnstar(id: Long) {}
+    override suspend fun markReadMultiple(body: MarkMultipleRequest) { markReadCalls.add(body.items) }
+    override suspend fun markUnreadMultiple(body: MarkMultipleRequest) { markUnreadCalls.add(body.items) }
+    override suspend fun markStarMultiple(body: MarkMultipleRequest) { markStarCalls.add(body.items) }
+    override suspend fun markUnstarMultiple(body: MarkMultipleRequest) { markUnstarCalls.add(body.items) }
+    override suspend fun markAllRead() {}
+}

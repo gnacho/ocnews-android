@@ -1,161 +1,19 @@
 package app.ocnews.sync
 
-import app.ocnews.data.local.FeedDao
-import app.ocnews.data.local.FeedEntity
-import app.ocnews.data.local.FolderDao
-import app.ocnews.data.local.FolderEntity
-import app.ocnews.data.local.ItemDao
-import app.ocnews.data.local.ItemEntity
-import app.ocnews.data.remote.NewsApi
-import app.ocnews.data.remote.dto.CreateFeedRequest
-import app.ocnews.data.remote.dto.CreateFolderRequest
-import app.ocnews.data.remote.dto.DiscoverResponse
 import app.ocnews.data.remote.dto.FeedDto
 import app.ocnews.data.remote.dto.FeedsResponse
 import app.ocnews.data.remote.dto.FolderDto
 import app.ocnews.data.remote.dto.FoldersResponse
 import app.ocnews.data.remote.dto.ItemDto
 import app.ocnews.data.remote.dto.ItemsResponse
-import app.ocnews.data.remote.dto.MarkMultipleRequest
-import app.ocnews.data.remote.dto.MoveFeedRequest
-import app.ocnews.data.remote.dto.RenameFeedRequest
-import app.ocnews.data.remote.dto.RenameFolderRequest
-import app.ocnews.data.remote.dto.UserResponse
-import app.ocnews.data.remote.dto.VersionResponse
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
+import app.ocnews.testutil.FakeFeedDao
+import app.ocnews.testutil.FakeFolderDao
+import app.ocnews.testutil.FakeItemDao
+import app.ocnews.testutil.FakeNewsApi
+import app.ocnews.testutil.item
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
-
-private fun item(
-    id: Long,
-    unread: Boolean,
-    starred: Boolean = false,
-    unreadPending: Boolean = false,
-    starredPending: Boolean = false,
-    lastModified: Long = id,
-) = ItemEntity(
-    id = id,
-    guid = "g$id",
-    guidHash = "h$id",
-    url = "u$id",
-    title = "t$id",
-    author = "",
-    pubDate = id,
-    body = "",
-    enclosureMime = null,
-    enclosureLink = null,
-    mediaThumbnail = null,
-    mediaDescription = null,
-    feedId = 1,
-    unread = unread,
-    starred = starred,
-    filtered = false,
-    rtl = false,
-    lastModified = lastModified,
-    fingerprint = "f$id",
-    unreadPending = unreadPending,
-    starredPending = starredPending,
-)
-
-private class FakeItemDao : ItemDao {
-    val items = mutableListOf<ItemEntity>()
-    val clearUnread = mutableListOf<List<Long>>()
-    val clearStarred = mutableListOf<List<Long>>()
-
-    override suspend fun upsertAll(items: List<ItemEntity>) { this.items.addAll(items) }
-    override fun getAll(): Flow<List<ItemEntity>> = emptyFlow()
-    override fun getUnread(): Flow<List<ItemEntity>> = emptyFlow()
-    override fun getStarred(): Flow<List<ItemEntity>> = emptyFlow()
-    override fun getByFeed(feedId: Long): Flow<List<ItemEntity>> = emptyFlow()
-    override suspend fun getById(id: Long): ItemEntity? = items.firstOrNull { it.id == id }
-    override suspend fun getHighestLastModified(): Long? = items.maxOfOrNull { it.lastModified }
-    override suspend fun setUnread(id: Long, unread: Boolean) {}
-    override suspend fun setStarred(id: Long, starred: Boolean) {}
-    override suspend fun getPendingUnread(): List<ItemEntity> = items.filter { it.unreadPending }
-    override suspend fun getPendingStarred(): List<ItemEntity> = items.filter { it.starredPending }
-    override suspend fun clearUnreadPending(ids: List<Long>) { clearUnread.add(ids) }
-    override suspend fun clearStarredPending(ids: List<Long>) { clearStarred.add(ids) }
-    override suspend fun clear() { items.clear() }
-}
-
-private class FakeFolderDao : FolderDao {
-    val folders = mutableListOf<FolderEntity>()
-    override suspend fun upsertAll(folders: List<FolderEntity>) { this.folders.addAll(folders) }
-    override fun getAll(): Flow<List<FolderEntity>> = emptyFlow()
-    override suspend fun getById(id: Long): FolderEntity? = null
-    override suspend fun deleteById(id: Long) {}
-    override suspend fun clear() { folders.clear() }
-}
-
-private class FakeFeedDao : FeedDao {
-    val feeds = mutableListOf<FeedEntity>()
-    override suspend fun upsertAll(feeds: List<FeedEntity>) { this.feeds.addAll(feeds) }
-    override fun getAll(): Flow<List<FeedEntity>> = emptyFlow()
-    override fun getByFolder(folderId: Long): Flow<List<FeedEntity>> = emptyFlow()
-    override fun getRootFeeds(): Flow<List<FeedEntity>> = emptyFlow()
-    override suspend fun getById(id: Long): FeedEntity? = null
-    override suspend fun rename(id: Long, title: String) {}
-    override suspend fun move(id: Long, folderId: Long?) {}
-    override suspend fun deleteById(id: Long) {}
-    override suspend fun clear() { feeds.clear() }
-}
-
-private class FakeNewsApi(
-    var foldersResponse: FoldersResponse = FoldersResponse(emptyList()),
-    var feedsResponse: FeedsResponse = FeedsResponse(emptyList()),
-    var itemsResponse: ItemsResponse = ItemsResponse(emptyList()),
-    var itemsUpdatedResponse: ItemsResponse = ItemsResponse(emptyList()),
-) : NewsApi {
-    val markUnreadCalls = mutableListOf<List<Long>>()
-    val markReadCalls = mutableListOf<List<Long>>()
-    val markStarCalls = mutableListOf<List<Long>>()
-    val markUnstarCalls = mutableListOf<List<Long>>()
-    val itemsCalls = mutableListOf<Triple<Int, Boolean, Int>>() // type, getRead, batchSize
-    val itemsUpdatedLastModified = mutableListOf<Long>()
-
-    override suspend fun version() = VersionResponse("28.4.0")
-    override suspend fun user() = UserResponse("u", "User")
-    override suspend fun folders() = foldersResponse
-    override suspend fun createFolder(body: CreateFolderRequest) = FoldersResponse(emptyList())
-    override suspend fun renameFolder(id: Long, body: RenameFolderRequest) {}
-    override suspend fun deleteFolder(id: Long) {}
-    override suspend fun markFolderRead(id: Long) {}
-    override suspend fun feeds() = feedsResponse
-    override suspend fun createFeed(body: CreateFeedRequest) = FeedsResponse(emptyList())
-    override suspend fun discover(url: String) = DiscoverResponse(emptyList())
-    override suspend fun deleteFeed(id: Long) {}
-    override suspend fun moveFeed(id: Long, body: MoveFeedRequest) {}
-    override suspend fun renameFeed(id: Long, body: RenameFeedRequest) {}
-
-    override suspend fun items(
-        type: Int,
-        id: Long?,
-        getRead: Boolean,
-        batchSize: Int,
-        offset: Long?,
-        oldestFirst: Boolean,
-    ): ItemsResponse {
-        itemsCalls.add(Triple(type, getRead, batchSize))
-        return itemsResponse
-    }
-
-    override suspend fun itemsUpdated(lastModified: Long, type: Int, id: Long): ItemsResponse {
-        itemsUpdatedLastModified.add(lastModified)
-        return itemsUpdatedResponse
-    }
-
-    override suspend fun markRead(id: Long) {}
-    override suspend fun markUnread(id: Long) {}
-    override suspend fun markStar(id: Long) {}
-    override suspend fun markUnstar(id: Long) {}
-    override suspend fun markReadMultiple(body: MarkMultipleRequest) { markReadCalls.add(body.items) }
-    override suspend fun markUnreadMultiple(body: MarkMultipleRequest) { markUnreadCalls.add(body.items) }
-    override suspend fun markStarMultiple(body: MarkMultipleRequest) { markStarCalls.add(body.items) }
-    override suspend fun markUnstarMultiple(body: MarkMultipleRequest) { markUnstarCalls.add(body.items) }
-    override suspend fun markAllRead() {}
-}
 
 class SyncEngineTest {
 
