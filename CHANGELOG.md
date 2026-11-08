@@ -4,6 +4,21 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.20] - 2026-11-08
+
+### Changed
+
+- Top bar: add-feed, refresh and logout moved into a three-dot profile menu; the extra +, sync glyph and avatar are gone.
+- Drawer: 80% width, smaller fonts; Import OPML and Log out moved out.
+- List: smaller title font, square 80dp thumbnails, configurable swipe actions, optional titles-only list.
+- Import OPML moved to Settings.
+
+### Added
+
+- Settings screen mirroring Nextcloud News: General (sync on start, only unread, swipe right/left action, sort, search in), Display (theme, feed list, text size), Data & sync (sync interval, clear cache), About (license, report, contribute, version).
+- Mark all as read.
+- Log out now asks for confirmation.
+
 ## [0.1.18] - 2026-11-08
 
 ### Changed
