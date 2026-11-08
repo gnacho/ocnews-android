@@ -4,6 +4,19 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.30] - 2026-11-08
+
+### Changed
+
+- The reader now renders articles natively with Compose instead of a WebView. The body keeps bold, italic and links, and the first image is shown as a hero.
+
+### Fixed
+
+- Swipe between articles is smooth and responds to fling: swipe left goes to the next article, swipe right to the previous one, even with a short flick.
+- Vertical scrolling never switches article and no longer fights the horizontal gesture.
+- Removed the flicker caused by recreating the WebView on every page.
+- The reader top bar, title, meta and body follow the theme, including dark mode.
+
 ## [0.1.28] - 2026-11-08
 
 ### Fixed
