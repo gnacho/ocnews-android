@@ -44,10 +44,13 @@
     <string name="interval_360">6 horas</string>
 
     <!-- Relative time -->
-    <string name="just_now">ahora mismo</string>
-    <string name="min_ago">hace %1$d min</string>
-    <string name="h_ago">hace %1$d h</string>
-    <string name="days_ago">hace %1$d días</string>
+    <string name="just_now">ahora</string>
+    <string name="min_ago">%1$d min</string>
+    <string name="h_ago">%1$d h</string>
+    <plurals name="days_ago">
+        <item quantity="one">%1$d día</item>
+        <item quantity="other">%1$d días</item>
+    </plurals>
 
     <!-- Errors -->
     <string name="err_invalid_credentials">Usuario o token no válido</string>
