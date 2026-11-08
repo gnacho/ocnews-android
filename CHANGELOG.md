@@ -4,6 +4,17 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.10] - 2026-11-08
+
+### Added
+
+- Spanish (es) localization for all UI strings, error messages and relative time (#10).
+
+### Fixed
+
+- The navigation drawer now has a proper surface background instead of rendering transparent over the article list (#8).
+- Feed favicons now load: server-relative favicon URLs are resolved against the server (#9).
+
 ## [0.1.8] - 2026-11-08
 
 ### Fixed
