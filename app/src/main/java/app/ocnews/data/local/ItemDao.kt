@@ -29,6 +29,12 @@ interface ItemDao {
     @Query("SELECT MAX(lastModified) FROM item")
     suspend fun getHighestLastModified(): Long?
 
+    @Query("SELECT COUNT(*) FROM item WHERE unread = 1")
+    fun observeUnreadCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM item WHERE starred = 1")
+    fun observeStarredCount(): Flow<Int>
+
     // State changes (optimistic): flip the effective value and flag as pending.
     @Query("UPDATE item SET unread = :unread, unreadPending = 1 WHERE id = :id")
     suspend fun setUnread(id: Long, unread: Boolean)

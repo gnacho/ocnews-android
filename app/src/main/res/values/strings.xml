@@ -18,6 +18,9 @@
     <string name="log_out">Log out</string>
     <string name="no_articles">No articles</string>
     <string name="add_feed">Add feed</string>
+    <string name="search">Search</string>
+    <string name="search_hint">Search articles</string>
+    <string name="close">Close</string>
     <string name="open">Open</string>
     <string name="share">Share</string>
     <string name="open_original">Open original</string>
