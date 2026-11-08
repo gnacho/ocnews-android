@@ -1,0 +1,60 @@
+<resources>
+    <string name="app_name">ocnews</string>
+
+    <!-- Login -->
+    <string name="server_url">URL del servidor</string>
+    <string name="username">Usuario</string>
+    <string name="app_token">Token de la app</string>
+    <string name="sign_in">Entrar</string>
+    <string name="signing_in">Entrando…</string>
+
+    <!-- Navigation / list -->
+    <string name="all_articles">Todos los artículos</string>
+    <string name="starred">Destacados</string>
+    <string name="import_opml">Importar OPML</string>
+    <string name="settings">Ajustes</string>
+    <string name="log_out">Cerrar sesión</string>
+    <string name="no_articles">No hay artículos</string>
+    <string name="add_feed">Añadir feed</string>
+    <string name="open">Abrir</string>
+    <string name="back">Atrás</string>
+    <string name="star">Destacar</string>
+    <string name="all">Todos</string>
+    <string name="unread">No leídos</string>
+    <string name="feed">Feed</string>
+
+    <!-- Add feed -->
+    <string name="feed_or_site_url">URL del feed o sitio</string>
+    <string name="multiple_feeds">Se encontraron varios feeds. Elige uno:</string>
+    <string name="working">Trabajando…</string>
+    <string name="add">Añadir</string>
+    <string name="done">Hecho</string>
+    <string name="cancel">Cancelar</string>
+
+    <!-- Settings -->
+    <string name="theme">Tema</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="sync_interval">Intervalo de sync</string>
+    <string name="interval_never">Nunca</string>
+    <string name="interval_15">15 minutos</string>
+    <string name="interval_30">30 minutos</string>
+    <string name="interval_60">1 hora</string>
+    <string name="interval_360">6 horas</string>
+
+    <!-- Relative time -->
+    <string name="just_now">ahora mismo</string>
+    <string name="min_ago">hace %1$d min</string>
+    <string name="h_ago">hace %1$d h</string>
+    <string name="days_ago">hace %1$d días</string>
+
+    <!-- Errors -->
+    <string name="err_invalid_credentials">Usuario o token no válido</string>
+    <string name="err_server">Error del servidor (%1$d)</string>
+    <string name="err_login_failed">No se pudo iniciar sesión</string>
+    <string name="err_version_zero">La app de noticias reporta versión 0</string>
+    <string name="err_enter_url">Introduce una URL</string>
+    <string name="err_no_feeds">No se encontraron feeds en esta URL</string>
+    <string name="err_generic">Error</string>
+</resources>

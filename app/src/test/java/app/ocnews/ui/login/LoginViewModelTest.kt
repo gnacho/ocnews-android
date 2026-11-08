@@ -46,7 +46,7 @@ class LoginViewModelTest {
 
             assertTrue(vm.state.value.loggedIn)
             assertFalse(vm.state.value.loading)
-            assertEquals(null, vm.state.value.error)
+            assertEquals(null, vm.state.value.errorRes)
         } finally {
             Dispatchers.resetMain()
         }
@@ -65,7 +65,7 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             assertFalse(vm.state.value.loggedIn)
-            assertTrue(vm.state.value.error != null)
+            assertTrue(vm.state.value.errorRes != null)
         } finally {
             Dispatchers.resetMain()
         }

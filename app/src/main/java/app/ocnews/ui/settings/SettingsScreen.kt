@@ -23,22 +23,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.ocnews.R
 import app.ocnews.data.settings.ThemeMode
 
 private val themeOptions = listOf(
-    ThemeMode.SYSTEM to "System",
-    ThemeMode.LIGHT to "Light",
-    ThemeMode.DARK to "Dark",
+    ThemeMode.SYSTEM to R.string.theme_system,
+    ThemeMode.LIGHT to R.string.theme_light,
+    ThemeMode.DARK to R.string.theme_dark,
 )
 
 private val intervalOptions = listOf(
-    0 to "Never",
-    15 to "15 minutes",
-    30 to "30 minutes",
-    60 to "1 hour",
-    360 to "6 hours",
+    0 to R.string.interval_never,
+    15 to R.string.interval_15,
+    30 to R.string.interval_30,
+    60 to R.string.interval_60,
+    360 to R.string.interval_360,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,20 +50,20 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("Settings") },
+            title = { Text(stringResource(R.string.settings)) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
             },
         )
 
         Text(
-            text = "Theme",
+            text = stringResource(R.string.theme),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        themeOptions.forEach { (mode, label) ->
+        themeOptions.forEach { (mode, labelRes) ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -71,18 +73,18 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
             ) {
                 RadioButton(selected = settings.theme == mode, onClick = { viewModel.setTheme(mode) })
                 Spacer(Modifier.width(8.dp))
-                Text(label)
+                Text(stringResource(labelRes))
             }
         }
 
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
         Text(
-            text = "Sync interval",
+            text = stringResource(R.string.sync_interval),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        intervalOptions.forEach { (minutes, label) ->
+        intervalOptions.forEach { (minutes, labelRes) ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -95,7 +97,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
                     onClick = { viewModel.setSyncInterval(minutes) },
                 )
                 Spacer(Modifier.width(8.dp))
-                Text(label)
+                Text(stringResource(labelRes))
             }
         }
         Spacer(Modifier.height(16.dp))

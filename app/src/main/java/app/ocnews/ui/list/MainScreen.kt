@@ -46,16 +46,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import app.ocnews.R
 import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemEntity
 import app.ocnews.ui.addfeed.AddFeedDialog
 import app.ocnews.ui.addfeed.AddFeedViewModel
-import app.ocnews.util.formatRelativeTime
+import app.ocnews.util.format
+import app.ocnews.util.relativeTime
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 
@@ -120,10 +123,13 @@ fun MainScreen(
                     },
                     actions = {
                         IconButton(onClick = { showAddFeed = true }) {
-                            Icon(Icons.Filled.Add, contentDescription = "Add feed")
+                            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_feed))
                         }
                         TextButton(onClick = onToggleOnlyUnread) {
-                            Text(if (onlyUnread) "Unread" else "All")
+                            Text(
+                                if (onlyUnread) stringResource(R.string.unread)
+                                else stringResource(R.string.all)
+                            )
                         }
                         IconButton(onClick = onSync, enabled = !syncing) {
                             Text(if (syncing) "…" else "↻")
@@ -165,15 +171,15 @@ private fun DrawerContent(
     onOpenSettings: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("ocnews", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
         NavigationDrawerItem(
-            label = { Text("All articles") },
+            label = { Text(stringResource(R.string.all_articles)) },
             selected = scope == Scope.All,
             onClick = { onSelectScope(Scope.All) },
         )
         NavigationDrawerItem(
-            label = { Text("Starred") },
+            label = { Text(stringResource(R.string.starred)) },
             selected = scope == Scope.Starred,
             onClick = { onSelectScope(Scope.Starred) },
         )
@@ -197,16 +203,16 @@ private fun DrawerContent(
 
         Spacer(Modifier.weight(1f))
         NavigationDrawerItem(
-            label = { Text("Import OPML") },
+            label = { Text(stringResource(R.string.import_opml)) },
             selected = false,
             onClick = onImportOpml,
         )
         NavigationDrawerItem(
-            label = { Text("Settings") },
+            label = { Text(stringResource(R.string.settings)) },
             selected = false,
             onClick = onOpenSettings,
         )
-        TextButton(onClick = onLogout) { Text("Log out") }
+        TextButton(onClick = onLogout) { Text(stringResource(R.string.log_out)) }
     }
 }
 
@@ -247,10 +253,11 @@ private fun ArticleList(
 ) {
     if (items.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No articles", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.no_articles), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
+    val context = LocalContext.current
     LazyColumn(Modifier.fillMaxSize()) {
         items(items, key = { it.id }) { item ->
             Column(
@@ -279,12 +286,12 @@ private fun ArticleList(
                     IconButton(onClick = { onToggleStarred(item) }) {
                         Icon(
                             imageVector = if (item.starred) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                            contentDescription = "Star",
+                            contentDescription = stringResource(R.string.star),
                         )
                     }
                 }
                 Text(
-                    text = formatRelativeTime(item.pubDate),
+                    text = relativeTime(item.pubDate).format(context),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -309,7 +316,7 @@ private fun Reader(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
             }
             IconButton(onClick = { onToggleRead(item) }) {
                 Text(if (item.unread) "●" else "○")
@@ -317,7 +324,7 @@ private fun Reader(
             IconButton(onClick = { onToggleStarred(item) }) {
                 Icon(
                     imageVector = if (item.starred) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                    contentDescription = "Star",
+                    contentDescription = stringResource(R.string.star),
                 )
             }
             Spacer(Modifier.weight(1f))
@@ -325,7 +332,7 @@ private fun Reader(
                 onClick = {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)))
                 },
-            ) { Text("Open") }
+            ) { Text(stringResource(R.string.open)) }
         }
 
         Column(Modifier.padding(horizontal = 16.dp)) {
@@ -342,7 +349,7 @@ private fun Reader(
                 )
             }
             Text(
-                text = formatRelativeTime(item.pubDate),
+                text = relativeTime(item.pubDate).format(context),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -359,8 +366,9 @@ private fun Reader(
     }
 }
 
+@Composable
 private fun scopeLabel(scope: Scope): String = when (scope) {
-    Scope.All -> "All articles"
-    Scope.Starred -> "Starred"
-    is Scope.Feed -> "Feed"
+    Scope.All -> stringResource(R.string.all_articles)
+    Scope.Starred -> stringResource(R.string.starred)
+    is Scope.Feed -> stringResource(R.string.feed)
 }

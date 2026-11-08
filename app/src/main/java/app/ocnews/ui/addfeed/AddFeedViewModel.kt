@@ -3,6 +3,7 @@ package app.ocnews.ui.addfeed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import app.ocnews.R
 import app.ocnews.data.remote.dto.DiscoveredFeedDto
 import app.ocnews.data.repo.NewsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +15,8 @@ import retrofit2.HttpException
 data class AddFeedUiState(
     val url: String = "",
     val loading: Boolean = false,
-    val error: String? = null,
+    val errorRes: Int? = null,
+    val errorArgs: List<Any> = emptyList(),
     val discovered: List<DiscoveredFeedDto> = emptyList(),
     val done: Boolean = false,
 )
@@ -27,16 +29,16 @@ class AddFeedViewModel(private val repository: NewsRepository) : ViewModel() {
     var folderId: Long? = null
 
     fun onUrlChange(value: String) =
-        _state.update { it.copy(url = value, error = null, discovered = emptyList()) }
+        _state.update { it.copy(url = value, errorRes = null, errorArgs = emptyList(), discovered = emptyList()) }
 
     fun add() {
         val url = _state.value.url.trim()
         if (url.isEmpty()) {
-            _state.update { it.copy(error = "Enter a URL") }
+            _state.update { it.copy(errorRes = R.string.err_enter_url, errorArgs = emptyList()) }
             return
         }
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, discovered = emptyList()) }
+            _state.update { it.copy(loading = true, errorRes = null, errorArgs = emptyList(), discovered = emptyList()) }
             try {
                 repository.addFeed(url, folderId)
                 _state.update { it.copy(loading = false, done = true) }
@@ -44,15 +46,15 @@ class AddFeedViewModel(private val repository: NewsRepository) : ViewModel() {
                 if (e.code() == 422) {
                     val discovered = repository.discover(url)
                     if (discovered.isEmpty()) {
-                        _state.update { it.copy(loading = false, error = "No feeds found at this URL") }
+                        _state.update { it.copy(loading = false, errorRes = R.string.err_no_feeds, errorArgs = emptyList()) }
                     } else {
                         _state.update { it.copy(loading = false, discovered = discovered) }
                     }
                 } else {
-                    _state.update { it.copy(loading = false, error = "Server error (${e.code()})") }
+                    _state.update { it.copy(loading = false, errorRes = R.string.err_server, errorArgs = listOf(e.code())) }
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = e.message ?: "Error") }
+                _state.update { it.copy(loading = false, errorRes = R.string.err_generic, errorArgs = emptyList()) }
             }
         }
     }
@@ -64,7 +66,7 @@ class AddFeedViewModel(private val repository: NewsRepository) : ViewModel() {
                 repository.addFeed(feed.url, folderId)
                 _state.update { it.copy(loading = false, done = true) }
             } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = e.message ?: "Error") }
+                _state.update { it.copy(loading = false, errorRes = R.string.err_generic, errorArgs = emptyList()) }
             }
         }
     }
