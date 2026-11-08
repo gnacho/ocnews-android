@@ -16,10 +16,7 @@ class SyncEngine(
     private val itemDao: ItemDao,
 ) {
     suspend fun initialSync() {
-        val folders = api.folders()
-        val feeds = api.feeds()
-        folderDao.upsertAll(folders.folders.map { it.toEntity() })
-        feedDao.upsertAll(feeds.feeds.map { it.toEntity() })
+        refreshFoldersAndFeeds()
 
         // Unread items: type=3 (all), getRead=false, batchSize=-1, oldest first.
         val unread = api.items(type = 3, getRead = false, batchSize = -1, oldestFirst = true)
@@ -31,9 +28,20 @@ class SyncEngine(
     }
 
     suspend fun incrementalSync() {
+        // Folders and feeds have no incremental endpoint in v1.3, so refresh them
+        // on every sync to pick up remote changes from other clients.
+        refreshFoldersAndFeeds()
+
         val watermark = itemDao.getHighestLastModified() ?: 0L
         val updated = api.itemsUpdated(lastModified = watermark)
         itemDao.upsertAll(updated.items.map { it.toEntity() })
+    }
+
+    private suspend fun refreshFoldersAndFeeds() {
+        val folders = api.folders()
+        val feeds = api.feeds()
+        folderDao.upsertAll(folders.folders.map { it.toEntity() })
+        feedDao.upsertAll(feeds.feeds.map { it.toEntity() })
     }
 
     // Drains pending read/unread and star/unstar changes to the server.
