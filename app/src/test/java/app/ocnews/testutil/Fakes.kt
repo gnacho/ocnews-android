@@ -91,6 +91,7 @@ class FakeFolderDao : FolderDao {
     override suspend fun upsertAll(folders: List<FolderEntity>) { this.folders.addAll(folders) }
     override fun getAll(): Flow<List<FolderEntity>> = emptyFlow()
     override suspend fun getById(id: Long): FolderEntity? = null
+    override suspend fun getByName(name: String): FolderEntity? = folders.firstOrNull { it.name == name }
     override suspend fun deleteById(id: Long) {}
     override suspend fun clear() { folders.clear() }
 }

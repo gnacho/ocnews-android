@@ -16,10 +16,16 @@ import app.ocnews.data.remote.dto.RenameFolderRequest
 import app.ocnews.data.session.Session
 import app.ocnews.data.session.SessionStore
 import app.ocnews.data.toEntity
+import app.ocnews.opml.OpmlParser
 import app.ocnews.sync.SyncEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
+
+data class OpmlImportResult(
+    val feedsAdded: Int,
+    val foldersCreated: Int,
+)
 
 // Single concurrency boundary between UI (ViewModels) and data sources.
 class NewsRepository(
@@ -133,6 +139,32 @@ class NewsRepository(
 
     suspend fun markAllRead() {
         currentApi()?.markAllRead()
+    }
+
+    suspend fun importOpml(opmlXml: String): OpmlImportResult {
+        val api = currentApi() ?: return OpmlImportResult(0, 0)
+        val entries = OpmlParser.parse(opmlXml)
+        var feedsAdded = 0
+        var foldersCreated = 0
+        val knownFolders = mutableMapOf<String, Long>()
+
+        for (entry in entries) {
+            val folderId = entry.folderName?.let { name ->
+                knownFolders.getOrPut(name) {
+                    folderDao.getByName(name)?.id
+                        ?: run {
+                            val resp = api.createFolder(CreateFolderRequest(name))
+                            foldersCreated++
+                            val id = resp.folders.first().id
+                            folderDao.upsertAll(resp.folders.map { it.toEntity() })
+                            id
+                        }
+                }
+            }
+            api.createFeed(CreateFeedRequest(entry.feedUrl, folderId))
+            feedsAdded++
+        }
+        return OpmlImportResult(feedsAdded, foldersCreated)
     }
 
     private suspend fun currentApi(): NewsApi? {

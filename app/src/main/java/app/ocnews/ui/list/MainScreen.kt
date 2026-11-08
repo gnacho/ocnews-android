@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,10 +51,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemEntity
+import app.ocnews.util.formatRelativeTime
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -183,6 +183,15 @@ private fun DrawerFeedItem(
     onSelectScope: (Scope) -> Unit,
 ) {
     NavigationDrawerItem(
+        icon = {
+            if (feed.faviconLink.isNotBlank()) {
+                AsyncImage(
+                    model = feed.faviconLink,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        },
         label = {
             Text(
                 text = feed.title,
@@ -233,7 +242,7 @@ private fun ArticleList(
                     }
                 }
                 Text(
-                    text = formatDate(item.pubDate),
+                    text = formatRelativeTime(item.pubDate),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -291,7 +300,7 @@ private fun Reader(
                 )
             }
             Text(
-                text = formatDate(item.pubDate),
+                text = formatRelativeTime(item.pubDate),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -312,9 +321,4 @@ private fun scopeLabel(scope: Scope): String = when (scope) {
     Scope.All -> "All articles"
     Scope.Starred -> "Starred"
     is Scope.Feed -> "Feed"
-}
-
-private fun formatDate(epochMillis: Long): String {
-    if (epochMillis <= 0) return ""
-    return SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault()).format(Date(epochMillis))
 }

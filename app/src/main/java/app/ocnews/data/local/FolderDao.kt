@@ -17,6 +17,9 @@ interface FolderDao {
     @Query("SELECT * FROM folder WHERE id = :id")
     suspend fun getById(id: Long): FolderEntity?
 
+    @Query("SELECT * FROM folder WHERE name = :name LIMIT 1")
+    suspend fun getByName(name: String): FolderEntity?
+
     @Query("DELETE FROM folder WHERE id = :id")
     suspend fun deleteById(id: Long)
 
