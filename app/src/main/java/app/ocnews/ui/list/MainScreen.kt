@@ -143,6 +143,7 @@ fun MainScreen(
                 if (current == null) {
                     ArticleList(
                         items = items,
+                        feeds = feeds,
                         onToggleRead = onToggleRead,
                         onToggleStarred = onToggleStarred,
                         onItemClick = { selectedItem = it },
@@ -247,6 +248,7 @@ private fun DrawerFeedItem(
 @Composable
 private fun ArticleList(
     items: List<ItemEntity>,
+    feeds: List<FeedEntity>,
     onToggleRead: (ItemEntity) -> Unit,
     onToggleStarred: (ItemEntity) -> Unit,
     onItemClick: (ItemEntity) -> Unit,
@@ -258,6 +260,7 @@ private fun ArticleList(
         return
     }
     val context = LocalContext.current
+    val feedById = feeds.associateBy { it.id }
     LazyColumn(Modifier.fillMaxSize()) {
         items(items, key = { it.id }) { item ->
             Column(
@@ -290,11 +293,39 @@ private fun ArticleList(
                         )
                     }
                 }
-                Text(
-                    text = relativeTime(item.pubDate).format(context),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val feed = feedById[item.feedId]
+                    if (feed != null) {
+                        if (feed.faviconLink.isNotBlank()) {
+                            AsyncImage(
+                                model = feed.faviconLink,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        Text(
+                            text = feed.title,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "·",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = relativeTime(item.pubDate).format(context),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             HorizontalDivider()
         }

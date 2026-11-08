@@ -36,7 +36,7 @@ fun RelativeTime.format(context: Context): String = when (this) {
     RelativeTime.JustNow -> context.getString(R.string.just_now)
     is RelativeTime.Minutes -> context.getString(R.string.min_ago, n)
     is RelativeTime.Hours -> context.getString(R.string.h_ago, n)
-    is RelativeTime.Days -> context.getString(R.string.days_ago, n)
+    is RelativeTime.Days -> context.resources.getQuantityString(R.plurals.days_ago, n.toInt(), n)
     is RelativeTime.Date ->
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(epochSeconds * 1000L))
 }
