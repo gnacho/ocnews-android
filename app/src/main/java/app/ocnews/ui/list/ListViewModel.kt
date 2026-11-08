@@ -37,6 +37,11 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
     private val onlyUnread = MutableStateFlow(false)
     private val _syncing = MutableStateFlow(false)
 
+    init {
+        // Sync on open: initial when empty, incremental otherwise.
+        sync()
+    }
+
     val scopeState: StateFlow<Scope> = scope
     val onlyUnreadState: StateFlow<Boolean> = onlyUnread
     val syncing: StateFlow<Boolean> = _syncing
