@@ -6,6 +6,7 @@ import app.ocnews.data.local.ItemDao
 import app.ocnews.data.remote.NewsApi
 import app.ocnews.data.remote.dto.MarkMultipleRequest
 import app.ocnews.data.toEntity
+import app.ocnews.util.resolveUrl
 
 // Orchestrates the v1.3 sync protocol against the local DAOs.
 // Pure Kotlin: testable in the JVM with fakes.
@@ -14,6 +15,7 @@ class SyncEngine(
     private val folderDao: FolderDao,
     private val feedDao: FeedDao,
     private val itemDao: ItemDao,
+    private val resolveUrl: (String) -> String = { it },
 ) {
     suspend fun initialSync() {
         refreshFoldersAndFeeds()
@@ -41,7 +43,9 @@ class SyncEngine(
         val folders = api.folders()
         val feeds = api.feeds()
         folderDao.upsertAll(folders.folders.map { it.toEntity() })
-        feedDao.upsertAll(feeds.feeds.map { it.toEntity() })
+        feedDao.upsertAll(
+            feeds.feeds.map { it.toEntity().copy(faviconLink = resolveUrl(it.faviconLink)) }
+        )
     }
 
     // Drains pending read/unread and star/unstar changes to the server.

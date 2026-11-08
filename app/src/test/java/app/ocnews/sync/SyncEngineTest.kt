@@ -106,4 +106,24 @@ class SyncEngineTest {
         assertEquals(1, feedDao.feeds.size)
         assertEquals(10L, feedDao.feeds.first().id)
     }
+
+    @Test
+    fun `sync resolves relative favicon against server`() = runTest {
+        val feedDao = FakeFeedDao()
+        val api = FakeNewsApi(
+            feedsResponse = FeedsResponse(
+                listOf(FeedDto(10, "http://feed", "Feed", faviconLink = "/favicon/abc"))
+            ),
+        )
+
+        SyncEngine(
+            api,
+            FakeFolderDao(),
+            feedDao,
+            FakeItemDao(),
+            resolveUrl = { path -> "https://host" + path },
+        ).initialSync()
+
+        assertEquals("https://host/favicon/abc", feedDao.feeds.first().faviconLink)
+    }
 }
