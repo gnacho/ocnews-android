@@ -63,6 +63,28 @@ fun item(
     starredPending = starredPending,
 )
 
+fun feed(
+    id: Long,
+    folderId: Long? = null,
+    unreadCount: Long = 0,
+) = FeedEntity(
+    id = id,
+    url = "http://feed$id",
+    title = "feed$id",
+    faviconLink = "",
+    added = 0,
+    nextUpdateTime = 0,
+    folderId = folderId,
+    unreadCount = unreadCount,
+    ordering = 0,
+    link = "",
+    pinned = false,
+    updateErrorCount = 0,
+    lastUpdateError = null,
+    urlHash = "",
+    isPodcast = false,
+)
+
 class FakeSessionStore : SessionStore {
     private val state = MutableStateFlow<Session?>(null)
     override val session: Flow<Session?> = state

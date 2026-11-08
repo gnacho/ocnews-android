@@ -60,8 +60,9 @@ class MainActivity : ComponentActivity() {
             }
             MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
                 val session by repository.session.collectAsStateWithLifecycle(initialValue = null)
+                val currentSession = session
 
-                if (session == null) {
+                if (currentSession == null) {
                     val state by loginViewModel.state.collectAsStateWithLifecycle()
                     LoginScreen(
                         state = state,
@@ -88,6 +89,8 @@ class MainActivity : ComponentActivity() {
                         val scope by listViewModel.scopeState.collectAsStateWithLifecycle()
                         val onlyUnread by listViewModel.onlyUnreadState.collectAsStateWithLifecycle()
                         val syncing by listViewModel.syncing.collectAsStateWithLifecycle()
+                        val unreadCount by listViewModel.unreadCount.collectAsStateWithLifecycle()
+                        val starredCount by listViewModel.starredCount.collectAsStateWithLifecycle()
 
                         val context = LocalContext.current
                         val opmlLauncher = rememberLauncherForActivityResult(
@@ -121,6 +124,10 @@ class MainActivity : ComponentActivity() {
                             scope = scope,
                             onlyUnread = onlyUnread,
                             syncing = syncing,
+                            unreadCount = unreadCount,
+                            starredCount = starredCount,
+                            username = currentSession.username,
+                            serverUrl = currentSession.serverUrl,
                             addFeedViewModel = addFeedViewModel,
                             onSelectScope = listViewModel::selectScope,
                             onToggleOnlyUnread = listViewModel::toggleOnlyUnread,

@@ -20,14 +20,24 @@ sealed interface Scope {
     data object All : Scope
     data object Starred : Scope
     data class Feed(val id: Long) : Scope
+    data class Folder(val id: Long) : Scope
 }
 
 // Pure filter, unit-testable without coroutines.
-fun filterItems(items: List<ItemEntity>, scope: Scope, onlyUnread: Boolean): List<ItemEntity> {
+fun filterItems(
+    items: List<ItemEntity>,
+    feeds: List<FeedEntity>,
+    scope: Scope,
+    onlyUnread: Boolean,
+): List<ItemEntity> {
     val scoped = when (scope) {
         Scope.All -> items
         Scope.Starred -> items.filter { it.starred }
         is Scope.Feed -> items.filter { it.feedId == scope.id }
+        is Scope.Folder -> {
+            val feedIds = feeds.filter { it.folderId == scope.id }.map { it.id }.toSet()
+            items.filter { it.feedId in feedIds }
+        }
     }
     return if (onlyUnread) scoped.filter { it.unread } else scoped
 }
@@ -52,15 +62,25 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
     val feeds: StateFlow<List<FeedEntity>> = repository.observeFeeds()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val items: StateFlow<List<ItemEntity>> = combine(scope, onlyUnread) { s, u -> s to u }
-        .flatMapLatest { (s, u) ->
-            when (s) {
-                Scope.All -> repository.observeItems()
-                Scope.Starred -> repository.observeStarred()
-                is Scope.Feed -> repository.observeItemsByFeed(s.id)
-            }.map { list -> filterItems(list, s, u) }
-        }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val unreadCount: StateFlow<Int> = repository.observeUnread()
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    val starredCount: StateFlow<Int> = repository.observeStarred()
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    val items: StateFlow<List<ItemEntity>> =
+        combine(scope, onlyUnread, repository.observeFeeds()) { s, u, feeds -> Triple(s, u, feeds) }
+            .flatMapLatest { (s, u, feeds) ->
+                when (s) {
+                    Scope.All -> repository.observeItems()
+                    Scope.Starred -> repository.observeStarred()
+                    is Scope.Feed -> repository.observeItemsByFeed(s.id)
+                    is Scope.Folder -> repository.observeItems()
+                }.map { list -> filterItems(list, feeds, s, u) }
+            }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun selectScope(s: Scope) {
         scope.value = s
