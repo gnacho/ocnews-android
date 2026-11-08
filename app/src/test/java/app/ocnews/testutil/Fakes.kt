@@ -24,6 +24,10 @@ import app.ocnews.data.session.SessionStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
+import retrofit2.HttpException
+import retrofit2.Response
 
 fun item(
     id: Long,
@@ -118,6 +122,7 @@ class FakeNewsApi(
     var createFolderResponse: FoldersResponse = FoldersResponse(emptyList()),
     var createFeedResponse: FeedsResponse = FeedsResponse(emptyList()),
     var discoverResponse: DiscoverResponse = DiscoverResponse(emptyList()),
+    var createFeedErrorCode: Int? = null,
 ) : NewsApi {
     val markUnreadCalls = mutableListOf<List<Long>>()
     val markReadCalls = mutableListOf<List<Long>>()
@@ -146,6 +151,11 @@ class FakeNewsApi(
     override suspend fun feeds() = feedsResponse
     override suspend fun createFeed(body: CreateFeedRequest): FeedsResponse {
         createFeedCalls.add(body.url to body.folderId)
+        createFeedErrorCode?.let { code ->
+            throw HttpException(
+                Response.error<FeedsResponse>(code, "".toResponseBody("application/json".toMediaType()))
+            )
+        }
         return createFeedResponse
     }
     override suspend fun discover(url: String): DiscoverResponse = discoverResponse

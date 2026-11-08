@@ -1,15 +1,22 @@
 package app.ocnews
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import app.ocnews.ui.addfeed.AddFeedViewModel
 import app.ocnews.ui.list.ListViewModel
 import app.ocnews.ui.list.MainScreen
 import app.ocnews.ui.login.LoginScreen
 import app.ocnews.ui.login.LoginViewModel
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -20,6 +27,9 @@ class MainActivity : ComponentActivity() {
     }
     private val listViewModel: ListViewModel by viewModels {
         ListViewModel.factory(repository)
+    }
+    private val addFeedViewModel: AddFeedViewModel by viewModels {
+        AddFeedViewModel.factory(repository)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,6 +54,31 @@ class MainActivity : ComponentActivity() {
                 val onlyUnread by listViewModel.onlyUnreadState.collectAsStateWithLifecycle()
                 val syncing by listViewModel.syncing.collectAsStateWithLifecycle()
 
+                val context = LocalContext.current
+                val opmlLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.OpenDocument()
+                ) { uri ->
+                    if (uri != null) {
+                        lifecycleScope.launch {
+                            val xml = context.contentResolver
+                                .openInputStream(uri)
+                                ?.bufferedReader()
+                                ?.use { it.readText() }
+                            if (xml != null) {
+                                val result = repository.importOpml(xml)
+                                Toast.makeText(
+                                    context,
+                                    "Imported ${result.feedsAdded} feeds" +
+                                        if (result.foldersCreated > 0) " (${result.foldersCreated} folders)" else "",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            } else {
+                                Toast.makeText(context, "Could not read file", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                }
+
                 MainScreen(
                     folders = folders,
                     feeds = feeds,
@@ -51,12 +86,14 @@ class MainActivity : ComponentActivity() {
                     scope = scope,
                     onlyUnread = onlyUnread,
                     syncing = syncing,
+                    addFeedViewModel = addFeedViewModel,
                     onSelectScope = listViewModel::selectScope,
                     onToggleOnlyUnread = listViewModel::toggleOnlyUnread,
                     onToggleRead = listViewModel::toggleRead,
                     onToggleStarred = listViewModel::toggleStarred,
                     onSync = listViewModel::sync,
                     onLogout = listViewModel::logout,
+                    onImportOpml = { opmlLauncher.launch(arrayOf("*/*")) },
                 )
             }
         }

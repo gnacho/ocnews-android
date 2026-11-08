@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
@@ -51,6 +52,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemEntity
+import app.ocnews.ui.addfeed.AddFeedDialog
+import app.ocnews.ui.addfeed.AddFeedViewModel
 import app.ocnews.util.formatRelativeTime
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
@@ -64,16 +67,26 @@ fun MainScreen(
     scope: Scope,
     onlyUnread: Boolean,
     syncing: Boolean,
+    addFeedViewModel: AddFeedViewModel,
     onSelectScope: (Scope) -> Unit,
     onToggleOnlyUnread: () -> Unit,
     onToggleRead: (ItemEntity) -> Unit,
     onToggleStarred: (ItemEntity) -> Unit,
     onSync: () -> Unit,
     onLogout: () -> Unit,
+    onImportOpml: () -> Unit,
 ) {
     var selectedItem by remember { mutableStateOf<ItemEntity?>(null) }
+    var showAddFeed by remember { mutableStateOf(false) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
+
+    if (showAddFeed) {
+        AddFeedDialog(
+            viewModel = addFeedViewModel,
+            onDismiss = { showAddFeed = false },
+        )
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -87,6 +100,7 @@ fun MainScreen(
                     coroutineScope.launch { drawerState.close() }
                 },
                 onLogout = onLogout,
+                onImportOpml = onImportOpml,
             )
         },
     ) {
@@ -100,6 +114,9 @@ fun MainScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = { showAddFeed = true }) {
+                            Icon(Icons.Filled.Add, contentDescription = "Add feed")
+                        }
                         TextButton(onClick = onToggleOnlyUnread) {
                             Text(if (onlyUnread) "Unread" else "All")
                         }
@@ -139,6 +156,7 @@ private fun DrawerContent(
     scope: Scope,
     onSelectScope: (Scope) -> Unit,
     onLogout: () -> Unit,
+    onImportOpml: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("ocnews", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -172,6 +190,11 @@ private fun DrawerContent(
         }
 
         Spacer(Modifier.weight(1f))
+        NavigationDrawerItem(
+            label = { Text("Import OPML") },
+            selected = false,
+            onClick = onImportOpml,
+        )
         TextButton(onClick = onLogout) { Text("Log out") }
     }
 }
@@ -226,6 +249,14 @@ private fun ArticleList(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (item.mediaThumbnail != null) {
+                        AsyncImage(
+                            model = item.mediaThumbnail,
+                            contentDescription = null,
+                            modifier = Modifier.size(56.dp),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                    }
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.bodyLarge,
