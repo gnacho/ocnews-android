@@ -8,15 +8,18 @@ import android.webkit.WebView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -43,6 +46,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.StarBorder
@@ -55,6 +59,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -79,10 +84,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import app.ocnews.BuildConfig
@@ -96,6 +104,8 @@ import app.ocnews.util.format
 import app.ocnews.util.relativeTime
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
+
+private val StarGold = Color(0xFFFFB300)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -185,7 +195,11 @@ fun MainScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                 )
                             } else {
-                                Text(scopeLabel(scope, folders))
+                                Text(
+                                    scopeLabel(scope, folders),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             }
                         },
                         navigationIcon = {
@@ -439,67 +453,109 @@ private fun ArticleList(
         }
         return
     }
-    val context = LocalContext.current
     val feedById = feeds.associateBy { it.id }
     LazyColumn(Modifier.fillMaxSize()) {
         items(items, key = { it.id }) { item ->
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { onItemClick(item) }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (item.unread) FontWeight.SemiBold else FontWeight.Normal,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = { onToggleStarred(item) }) {
-                        Icon(
-                            imageVector = if (item.starred) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                            contentDescription = stringResource(R.string.star),
-                        )
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val feed = feedById[item.feedId]
-                    if (feed != null) {
-                        if (feed.faviconLink.isNotBlank()) {
-                            AsyncImage(
-                                model = feed.faviconLink,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(Modifier.width(6.dp))
+            ArticleRow(
+                item = item,
+                feed = feedById[item.feedId],
+                onClick = { onItemClick(item) },
+                onToggleRead = onToggleRead,
+                onToggleStarred = onToggleStarred,
+            )
+            HorizontalDivider()
+        }
+    }
+}
+
+@Composable
+private fun ArticleRow(
+    item: ItemEntity,
+    feed: FeedEntity?,
+    onClick: () -> Unit,
+    onToggleRead: (ItemEntity) -> Unit,
+    onToggleStarred: (ItemEntity) -> Unit,
+) {
+    val context = LocalContext.current
+    var offsetX by remember { mutableStateOf(0f) }
+    val thumbnail = item.mediaThumbnail ?: firstImageUrl(item.body)?.let { unpackImageUrl(it) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(96.dp)
+            .offset { IntOffset(offsetX.toInt(), 0) }
+            .clickable(onClick = onClick)
+            .pointerInput(item.id) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (offsetX < -120f) {
+                            if (item.unread) onToggleRead(item)
+                        } else if (offsetX > 120f) {
+                            if (!item.starred) onToggleStarred(item)
                         }
-                        Text(
-                            text = feed.title,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
+                        offsetX = 0f
+                    },
+                    onHorizontalDrag = { change, amount ->
+                        offsetX += amount
+                        change.consume()
+                    },
+                )
+            }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (item.unread) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (feed != null) {
+                    if (feed.faviconLink.isNotBlank()) {
+                        AsyncImage(
+                            model = feed.faviconLink,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
                         )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = "·",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(4.dp))
                     }
                     Text(
-                        text = relativeTime(item.pubDate).format(context),
+                        text = feed.title,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "·",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.width(4.dp))
                 }
+                Text(
+                    text = relativeTime(item.pubDate).format(context),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            HorizontalDivider()
+        }
+        if (thumbnail != null) {
+            Spacer(Modifier.width(12.dp))
+            AsyncImage(
+                model = thumbnail,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(width = 112.dp, height = 80.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+            )
         }
     }
 }
@@ -559,9 +615,33 @@ private fun Reader(
                 onToggleRead = onToggleRead,
                 onFetchFull = { onFetchFull(current.id) },
             )
+            val scope = rememberCoroutineScope()
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.weight(1f),
+                userScrollEnabled = false,
+                modifier = Modifier.weight(1f).pointerInput(items.size) {
+                    var accumulated = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { accumulated = 0f },
+                        onDragEnd = {
+                            val target = when {
+                                accumulated < -150f -> pagerState.currentPage + 1
+                                accumulated > 150f -> pagerState.currentPage - 1
+                                else -> null
+                            }
+                            if (target != null) {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(target.coerceIn(0, items.lastIndex))
+                                }
+                            }
+                            accumulated = 0f
+                        },
+                        onHorizontalDrag = { change, amount ->
+                            accumulated += amount
+                            change.consume()
+                        },
+                    )
+                },
                 key = { page -> items[page].id },
             ) { page ->
                 val pageItem = items[page]
@@ -704,9 +784,9 @@ private fun buildReaderHtml(context: Context, item: ItemEntity, body: String): S
         append("h1{font-size:1.4em;line-height:1.3;margin:12px 0 4px;}")
         append(".meta{color:#888;font-size:0.85em;margin:0 0 16px;}")
         append("</style></head><body>")
-        if (heroUrl != null) append("<img src=\"").append(heroUrl).append("\">")
         append("<h1>").append(escapeHtml(item.title)).append("</h1>")
         append("<div class=\"meta\">").append(meta).append("</div>")
+        if (heroUrl != null) append("<img src=\"").append(heroUrl).append("\">")
         append(content)
         append("</body></html>")
     }
@@ -737,14 +817,16 @@ private fun FloatingActions(
                 Icon(
                     imageVector = if (item.starred) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     contentDescription = stringResource(R.string.star),
+                    tint = if (item.starred) StarGold else LocalContentColor.current,
                 )
             }
             IconButton(onClick = { onToggleRead(item) }) {
                 Icon(
-                    imageVector = if (item.unread) Icons.Outlined.CheckCircle else Icons.Filled.CheckCircle,
+                    imageVector = if (item.unread) Icons.Outlined.RadioButtonUnchecked else Icons.Filled.CheckCircle,
                     contentDescription = stringResource(
                         if (item.unread) R.string.mark_read else R.string.mark_unread
                     ),
+                    tint = if (item.unread) LocalContentColor.current else MaterialTheme.colorScheme.primary,
                 )
             }
             IconButton(
