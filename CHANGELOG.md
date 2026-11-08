@@ -4,6 +4,14 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.26] - 2026-11-08
+
+### Fixed
+
+- Reader swipe is now axis-locked: it follows the finger live but only on clearly horizontal drags, so scrolling vertically never switches article.
+- The reader top bar darkens with the theme (surface background plus theme text/icon colors).
+- Reduced WebView flicker with a hardware layer.
+
 ## [0.1.24] - 2026-11-08
 
 ### Fixed
