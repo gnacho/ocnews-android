@@ -85,3 +85,6 @@ data class ItemsResponse(val items: List<ItemDto>)
 
 @Serializable
 data class DiscoverResponse(val feeds: List<DiscoveredFeedDto>)
+
+@Serializable
+data class FullItemResponse(val body: String = "")

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 sealed interface Scope {
@@ -51,6 +52,7 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
     private val scope = MutableStateFlow<Scope>(Scope.All)
     private val onlyUnread = MutableStateFlow(false)
     private val _searchQuery = MutableStateFlow("")
+    private val _fullContent = MutableStateFlow<Map<Long, String>>(emptyMap())
     private val _syncing = MutableStateFlow(false)
 
     init {
@@ -61,6 +63,7 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
     val scopeState: StateFlow<Scope> = scope
     val onlyUnreadState: StateFlow<Boolean> = onlyUnread
     val searchQuery: StateFlow<String> = _searchQuery
+    val fullContent: StateFlow<Map<Long, String>> = _fullContent
     val syncing: StateFlow<Boolean> = _syncing
 
     val folders: StateFlow<List<FolderEntity>> = repository.observeFolders()
@@ -97,6 +100,18 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
         _searchQuery.value = q
     }
 
+    fun fetchFullContent(itemId: Long) {
+        viewModelScope.launch {
+            try {
+                repository.fetchFullContent(itemId)?.let { body ->
+                    _fullContent.update { it + (itemId to body) }
+                }
+            } catch (e: Exception) {
+                println("OCNEWS fetch full failed: ${e.message}")
+            }
+        }
+    }
+
     fun toggleRead(item: ItemEntity) {
         viewModelScope.launch { repository.setUnread(item.id, !item.unread) }
     }
@@ -112,7 +127,7 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
                 repository.sync()
             } catch (e: Exception) {
                 // Network/API failures must not crash the app; the list keeps cached data.
-                android.util.Log.w("OCNEWS", "sync failed: ${e.message}")
+                println("OCNEWS sync failed: ${e.message}")
             } finally {
                 _syncing.value = false
             }
