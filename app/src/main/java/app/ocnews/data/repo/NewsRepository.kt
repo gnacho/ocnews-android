@@ -7,8 +7,15 @@ import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemDao
 import app.ocnews.data.local.ItemEntity
 import app.ocnews.data.remote.NewsApi
+import app.ocnews.data.remote.dto.CreateFeedRequest
+import app.ocnews.data.remote.dto.CreateFolderRequest
+import app.ocnews.data.remote.dto.DiscoveredFeedDto
+import app.ocnews.data.remote.dto.MoveFeedRequest
+import app.ocnews.data.remote.dto.RenameFeedRequest
+import app.ocnews.data.remote.dto.RenameFolderRequest
 import app.ocnews.data.session.Session
 import app.ocnews.data.session.SessionStore
+import app.ocnews.data.toEntity
 import app.ocnews.sync.SyncEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -77,6 +84,60 @@ class NewsRepository(
     fun observeItems(): Flow<List<ItemEntity>> = itemDao.getAll()
     fun observeUnread(): Flow<List<ItemEntity>> = itemDao.getUnread()
     fun observeStarred(): Flow<List<ItemEntity>> = itemDao.getStarred()
+
+    suspend fun addFeed(url: String, folderId: Long? = null) {
+        val api = currentApi() ?: return
+        val resp = api.createFeed(CreateFeedRequest(url, folderId))
+        feedDao.upsertAll(resp.feeds.map { it.toEntity() })
+    }
+
+    suspend fun discover(url: String): List<DiscoveredFeedDto> {
+        return currentApi()?.discover(url)?.feeds ?: emptyList()
+    }
+
+    suspend fun createFolder(name: String) {
+        val api = currentApi() ?: return
+        val resp = api.createFolder(CreateFolderRequest(name))
+        folderDao.upsertAll(resp.folders.map { it.toEntity() })
+    }
+
+    suspend fun renameFolder(id: Long, name: String) {
+        val api = currentApi() ?: return
+        api.renameFolder(id, RenameFolderRequest(name))
+    }
+
+    suspend fun deleteFolder(id: Long) {
+        val api = currentApi() ?: return
+        api.deleteFolder(id)
+        folderDao.deleteById(id)
+    }
+
+    suspend fun renameFeed(id: Long, title: String) {
+        val api = currentApi() ?: return
+        api.renameFeed(id, RenameFeedRequest(title))
+        feedDao.rename(id, title)
+    }
+
+    suspend fun moveFeed(id: Long, folderId: Long?) {
+        val api = currentApi() ?: return
+        api.moveFeed(id, MoveFeedRequest(folderId ?: 0L))
+        feedDao.move(id, folderId)
+    }
+
+    suspend fun deleteFeed(id: Long) {
+        val api = currentApi() ?: return
+        api.deleteFeed(id)
+        feedDao.deleteById(id)
+    }
+
+    suspend fun markAllRead() {
+        currentApi()?.markAllRead()
+    }
+
+    private suspend fun currentApi(): NewsApi? {
+        val session = sessionStore.session.first() ?: return null
+        return apiFactory(session)
+    }
 
     private suspend fun clearLocalData() {
         folderDao.clear()

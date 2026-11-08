@@ -114,6 +114,9 @@ class FakeNewsApi(
     var feedsResponse: FeedsResponse = FeedsResponse(emptyList()),
     var itemsResponse: ItemsResponse = ItemsResponse(emptyList()),
     var itemsUpdatedResponse: ItemsResponse = ItemsResponse(emptyList()),
+    var createFolderResponse: FoldersResponse = FoldersResponse(emptyList()),
+    var createFeedResponse: FeedsResponse = FeedsResponse(emptyList()),
+    var discoverResponse: DiscoverResponse = DiscoverResponse(emptyList()),
 ) : NewsApi {
     val markUnreadCalls = mutableListOf<List<Long>>()
     val markReadCalls = mutableListOf<List<Long>>()
@@ -121,20 +124,33 @@ class FakeNewsApi(
     val markUnstarCalls = mutableListOf<List<Long>>()
     val itemsCalls = mutableListOf<Triple<Int, Boolean, Int>>() // type, getRead, batchSize
     val itemsUpdatedLastModified = mutableListOf<Long>()
+    val createFolderCalls = mutableListOf<String>()
+    val createFeedCalls = mutableListOf<Pair<String, Long?>>()
+    val deleteFolderCalls = mutableListOf<Long>()
+    val deleteFeedCalls = mutableListOf<Long>()
+    val renameFeedCalls = mutableListOf<Pair<Long, String>>()
+    val moveFeedCalls = mutableListOf<Pair<Long, Long>>()
+    var markAllReadCalls = 0
 
     override suspend fun version() = VersionResponse(versionResponse)
     override suspend fun user() = UserResponse("u", "User")
     override suspend fun folders() = foldersResponse
-    override suspend fun createFolder(body: CreateFolderRequest) = FoldersResponse(emptyList())
+    override suspend fun createFolder(body: CreateFolderRequest): FoldersResponse {
+        createFolderCalls.add(body.name)
+        return createFolderResponse
+    }
     override suspend fun renameFolder(id: Long, body: RenameFolderRequest) {}
-    override suspend fun deleteFolder(id: Long) {}
+    override suspend fun deleteFolder(id: Long) { deleteFolderCalls.add(id) }
     override suspend fun markFolderRead(id: Long) {}
     override suspend fun feeds() = feedsResponse
-    override suspend fun createFeed(body: CreateFeedRequest) = FeedsResponse(emptyList())
-    override suspend fun discover(url: String) = DiscoverResponse(emptyList())
-    override suspend fun deleteFeed(id: Long) {}
-    override suspend fun moveFeed(id: Long, body: MoveFeedRequest) {}
-    override suspend fun renameFeed(id: Long, body: RenameFeedRequest) {}
+    override suspend fun createFeed(body: CreateFeedRequest): FeedsResponse {
+        createFeedCalls.add(body.url to body.folderId)
+        return createFeedResponse
+    }
+    override suspend fun discover(url: String): DiscoverResponse = discoverResponse
+    override suspend fun deleteFeed(id: Long) { deleteFeedCalls.add(id) }
+    override suspend fun moveFeed(id: Long, body: MoveFeedRequest) { moveFeedCalls.add(id to body.folderId) }
+    override suspend fun renameFeed(id: Long, body: RenameFeedRequest) { renameFeedCalls.add(id to body.feedTitle) }
 
     override suspend fun items(
         type: Int,
@@ -161,5 +177,5 @@ class FakeNewsApi(
     override suspend fun markUnreadMultiple(body: MarkMultipleRequest) { markUnreadCalls.add(body.items) }
     override suspend fun markStarMultiple(body: MarkMultipleRequest) { markStarCalls.add(body.items) }
     override suspend fun markUnstarMultiple(body: MarkMultipleRequest) { markUnstarCalls.add(body.items) }
-    override suspend fun markAllRead() {}
+    override suspend fun markAllRead() { markAllReadCalls++ }
 }
