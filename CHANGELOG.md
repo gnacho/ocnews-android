@@ -4,13 +4,18 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.4] - 2026-11-08
+
+### Added
+
+- App launcher icon (Lucide "newspaper" on OpenCloud `#E2BAFF` background): adaptive icon + legacy PNGs.
+
 ## [0.1.2] - 2026-11-08
 
 First functional release of the native Android client for ocnews.
 
 ### Added
 
-- App launcher icon (Lucide "newspaper" on OpenCloud `#E2BAFF` background): adaptive icon + legacy PNGs.
 - Login with server URL + username + OpenCloud app token (Basic auth).
 - Full News API v1.3 sync: initial (folders/feeds/unread/starred), incremental
   (`/items/updated` watermark) and optimistic state push (read/unread/star/unstar
