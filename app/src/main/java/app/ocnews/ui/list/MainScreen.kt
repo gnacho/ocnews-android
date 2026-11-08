@@ -8,7 +8,10 @@ import android.webkit.WebView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -670,22 +673,29 @@ private fun Reader(
                 onFetchFull = { onFetchFull(current.id) },
             )
             val scope = rememberCoroutineScope()
+            val dragState = rememberDraggableState { delta ->
+                pagerState.dispatchRawDelta(-delta)
+            }
             HorizontalPager(
                 state = pagerState,
                 userScrollEnabled = false,
-                modifier = Modifier.weight(1f).pointerInput(items.size) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = {
-                            val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
-                            val target = kotlin.math.round(position).toInt().coerceIn(0, items.lastIndex)
-                            scope.launch { pagerState.animateScrollToPage(target) }
-                        },
-                        onHorizontalDrag = { change, amount ->
-                            change.consume()
-                            pagerState.dispatchRawDelta(-amount)
-                        },
-                    )
-                },
+                modifier = Modifier.weight(1f).draggable(
+                    state = dragState,
+                    orientation = Orientation.Horizontal,
+                    onDragStopped = { velocity ->
+                        val currentPage = pagerState.currentPage
+                        val target = when {
+                            velocity < -500f -> currentPage + 1
+                            velocity > 500f -> currentPage - 1
+                            else -> kotlin.math.round(
+                                currentPage + pagerState.currentPageOffsetFraction
+                            ).toInt()
+                        }
+                        scope.launch {
+                            pagerState.animateScrollToPage(target.coerceIn(0, items.lastIndex))
+                        }
+                    },
+                ),
                 key = { page -> items[page].id },
             ) { page ->
                 val pageItem = items[page]
