@@ -657,9 +657,11 @@ private fun Reader(
             ) { page ->
                 val pageItem = items[page]
                 val detail = itemDetails[pageItem.id]
+                val favicon = feeds.firstOrNull { it.id == pageItem.feedId }?.faviconLink
                 LaunchedEffect(pageItem.id) { onLoadDetail(pageItem.id) }
                 ReaderPage(
                     item = pageItem,
+                    faviconUrl = favicon,
                     isDark = isDark,
                     body = fullContent[pageItem.id] ?: detail?.body,
                 )
@@ -764,7 +766,12 @@ private fun ReaderTopBar(
 }
 
 @Composable
-private fun ReaderPage(item: ItemSummary, isDark: Boolean, body: String?) {
+private fun ReaderPage(
+    item: ItemSummary,
+    faviconUrl: String?,
+    isDark: Boolean,
+    body: String?,
+) {
     val context = LocalContext.current
     val linkColor = MaterialTheme.colorScheme.primary
     // Split the article into blocks so a huge body is laid out lazily instead of
@@ -790,18 +797,34 @@ private fun ReaderPage(item: ItemSummary, isDark: Boolean, body: String?) {
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                if (item.author.isNotBlank()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (!faviconUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = faviconUrl,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
                     Text(
                         text = item.author,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = relativeTime(item.pubDate).format(context),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
                     )
                 }
-                Text(
-                    text = relativeTime(item.pubDate).format(context),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 item.imageUrl?.let { heroUrl ->
                     Spacer(Modifier.height(12.dp))
                     AsyncImage(
