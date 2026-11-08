@@ -33,6 +33,7 @@ android {
         targetSdk = 37
         versionCode = 2
         versionName = "0.1.4"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -92,4 +93,9 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.4.21")
     testImplementation(libs.kotlinx.coroutines.test)
+
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 }
