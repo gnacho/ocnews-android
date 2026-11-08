@@ -88,4 +88,22 @@ class SyncEngineTest {
         assertEquals(listOf(900L), api.itemsUpdatedLastModified)
         assertEquals(3, itemDao.items.size)
     }
+
+    @Test
+    fun `incrementalSync refreshes folders and feeds`() = runTest {
+        val folderDao = FakeFolderDao()
+        val feedDao = FakeFeedDao()
+        val itemDao = FakeItemDao().apply { items.add(item(1, unread = true, lastModified = 500)) }
+        val api = FakeNewsApi(
+            foldersResponse = FoldersResponse(listOf(FolderDto(1, "Tech"))),
+            feedsResponse = FeedsResponse(listOf(FeedDto(10, "http://feed", "Feed", folderId = 1))),
+        )
+
+        SyncEngine(api, folderDao, feedDao, itemDao).incrementalSync()
+
+        assertEquals(1, folderDao.folders.size)
+        assertEquals("Tech", folderDao.folders.first().name)
+        assertEquals(1, feedDao.feeds.size)
+        assertEquals(10L, feedDao.feeds.first().id)
+    }
 }
