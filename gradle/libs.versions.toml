@@ -4,7 +4,7 @@ agp = "9.4.1"
 kotlin = "2.4.21"
 composeBom = "2026.09.00"
 # KSP: versioned to Kotlin; wired together with Room in the data layer step.
-ksp = "2.3.13"
+ksp = "2.3.9"
 
 # AndroidX
 activityCompose = "1.13.0"
