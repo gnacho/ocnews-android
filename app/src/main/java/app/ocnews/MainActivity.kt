@@ -92,6 +92,7 @@ class MainActivity : ComponentActivity() {
                         val unreadCount by listViewModel.unreadCount.collectAsStateWithLifecycle()
                         val starredCount by listViewModel.starredCount.collectAsStateWithLifecycle()
                         val searchQuery by listViewModel.searchQuery.collectAsStateWithLifecycle()
+                        val fullContent by listViewModel.fullContent.collectAsStateWithLifecycle()
 
                         val context = LocalContext.current
                         val opmlLauncher = rememberLauncherForActivityResult(
@@ -131,6 +132,8 @@ class MainActivity : ComponentActivity() {
                             serverUrl = currentSession.serverUrl,
                             searchQuery = searchQuery,
                             onSearchQueryChange = listViewModel::setSearchQuery,
+                            fullContent = fullContent,
+                            onFetchFull = listViewModel::fetchFullContent,
                             addFeedViewModel = addFeedViewModel,
                             onSelectScope = listViewModel::selectScope,
                             onToggleOnlyUnread = listViewModel::toggleOnlyUnread,

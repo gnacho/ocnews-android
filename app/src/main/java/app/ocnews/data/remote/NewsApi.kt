@@ -5,6 +5,7 @@ import app.ocnews.data.remote.dto.CreateFolderRequest
 import app.ocnews.data.remote.dto.DiscoverResponse
 import app.ocnews.data.remote.dto.FeedsResponse
 import app.ocnews.data.remote.dto.FoldersResponse
+import app.ocnews.data.remote.dto.FullItemResponse
 import app.ocnews.data.remote.dto.ItemsResponse
 import app.ocnews.data.remote.dto.MarkMultipleRequest
 import app.ocnews.data.remote.dto.MoveFeedRequest
@@ -78,6 +79,9 @@ interface NewsApi {
         @Query("type") type: Int = 3,
         @Query("id") id: Long = 0,
     ): ItemsResponse
+
+    @GET("items/{id}/full")
+    suspend fun itemFull(@Path("id") id: Long): FullItemResponse
 
     @POST("items/{id}/read")
     suspend fun markRead(@Path("id") id: Long)

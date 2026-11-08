@@ -24,6 +24,8 @@
     <string name="open">Open</string>
     <string name="share">Share</string>
     <string name="open_original">Open original</string>
+    <string name="fetch_full">Fetch full content</string>
+    <string name="open_in_browser">Open in browser</string>
     <string name="mark_read">Mark read</string>
     <string name="mark_unread">Mark unread</string>
     <string name="back">Back</string>

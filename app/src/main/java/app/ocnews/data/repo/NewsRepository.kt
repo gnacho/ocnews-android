@@ -113,6 +113,12 @@ class NewsRepository(
         return currentApi()?.discover(url)?.feeds ?: emptyList()
     }
 
+    // Fetches the full article text (backend readability extraction). Returns null on failure.
+    suspend fun fetchFullContent(itemId: Long): String? {
+        val api = currentApi() ?: return null
+        return api.itemFull(itemId).body.takeIf { it.isNotBlank() }
+    }
+
     suspend fun createFolder(name: String) {
         val api = currentApi() ?: return
         val resp = api.createFolder(CreateFolderRequest(name))

@@ -12,6 +12,7 @@ import app.ocnews.data.remote.dto.CreateFolderRequest
 import app.ocnews.data.remote.dto.DiscoverResponse
 import app.ocnews.data.remote.dto.FeedsResponse
 import app.ocnews.data.remote.dto.FoldersResponse
+import app.ocnews.data.remote.dto.FullItemResponse
 import app.ocnews.data.remote.dto.ItemsResponse
 import app.ocnews.data.remote.dto.MarkMultipleRequest
 import app.ocnews.data.remote.dto.MoveFeedRequest
@@ -219,6 +220,8 @@ class FakeNewsApi(
         itemsUpdatedLastModified.add(lastModified)
         return itemsUpdatedResponse
     }
+
+    override suspend fun itemFull(id: Long): FullItemResponse = FullItemResponse("full body for $id")
 
     override suspend fun markRead(id: Long) {}
     override suspend fun markUnread(id: Long) {}

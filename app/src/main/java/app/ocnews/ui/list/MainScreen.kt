@@ -1,6 +1,7 @@
 package app.ocnews.ui.list
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.webkit.WebView
@@ -15,8 +16,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,6 +42,7 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Logout
+import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.StarBorder
@@ -64,7 +68,9 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -73,7 +79,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -107,6 +112,8 @@ fun MainScreen(
     serverUrl: String,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
+    fullContent: Map<Long, String>,
+    onFetchFull: (Long) -> Unit,
     addFeedViewModel: AddFeedViewModel,
     onSelectScope: (Scope) -> Unit,
     onToggleOnlyUnread: () -> Unit,
@@ -241,6 +248,8 @@ fun MainScreen(
                 initialIndex = selectedIndex ?: 0,
                 feeds = feeds,
                 serverUrl = serverUrl,
+                fullContent = fullContent,
+                onFetchFull = onFetchFull,
                 onBack = { selectedIndex = null },
                 onToggleRead = onToggleRead,
                 onToggleStarred = onToggleStarred,
@@ -526,6 +535,8 @@ private fun Reader(
     initialIndex: Int,
     feeds: List<FeedEntity>,
     serverUrl: String,
+    fullContent: Map<Long, String>,
+    onFetchFull: (Long) -> Unit,
     onBack: () -> Unit,
     onToggleRead: (ItemEntity) -> Unit,
     onToggleStarred: (ItemEntity) -> Unit,
@@ -540,28 +551,33 @@ private fun Reader(
     val feedTitle = feeds.firstOrNull { it.id == current.feedId }?.title
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ReaderTopBar(
                 item = current,
                 feedTitle = feedTitle,
                 onBack = onBack,
                 onToggleRead = onToggleRead,
+                onFetchFull = { onFetchFull(current.id) },
             )
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.weight(1f),
                 key = { page -> items[page].id },
             ) { page ->
-                ReaderPage(items[page], serverUrl)
+                val pageItem = items[page]
+                ReaderPage(
+                    item = pageItem,
+                    serverUrl = serverUrl,
+                    body = fullContent[pageItem.id] ?: pageItem.body,
+                )
             }
         }
-        Box(Modifier.align(Alignment.BottomEnd)) {
-            FloatingActions(
-                item = current,
-                onToggleRead = onToggleRead,
-                onToggleStarred = onToggleStarred,
-            )
-        }
+        FloatingActions(
+            item = current,
+            onToggleRead = onToggleRead,
+            onToggleStarred = onToggleStarred,
+            modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp),
+        )
     }
 }
 
@@ -571,6 +587,7 @@ private fun ReaderTopBar(
     feedTitle: String?,
     onBack: () -> Unit,
     onToggleRead: (ItemEntity) -> Unit,
+    onFetchFull: () -> Unit,
 ) {
     val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
@@ -606,6 +623,13 @@ private fun ReaderTopBar(
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
+                    text = { Text(stringResource(R.string.fetch_full)) },
+                    onClick = {
+                        menuOpen = false
+                        onFetchFull()
+                    },
+                )
+                DropdownMenuItem(
                     text = { Text(stringResource(R.string.open_original)) },
                     onClick = {
                         menuOpen = false
@@ -632,57 +656,78 @@ private fun ReaderTopBar(
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun ReaderPage(item: ItemEntity, serverUrl: String) {
+private fun ReaderPage(item: ItemEntity, serverUrl: String, body: String) {
     val context = LocalContext.current
-    val heroUrl = item.mediaThumbnail ?: firstImageUrl(item.body)?.let { unpackImageUrl(it) }
-    Column(Modifier.fillMaxSize()) {
-        if (heroUrl != null) {
-            AsyncImage(
-                model = heroUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(220.dp),
-            )
-        }
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
-            if (item.author.isNotBlank()) {
-                Text(
-                    text = item.author,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    val html = remember(item.id, body) { buildReaderHtml(context, item, body) }
+    // Recreate the WebView when the body changes (fetch), and destroy it on release
+    // to avoid leaking native memory while swiping between articles.
+    key(html) {
+        val holder = remember { arrayOfNulls<WebView>(1) }
+        DisposableEffect(Unit) {
+            onDispose {
+                holder[0]?.let { it.stopLoading(); it.destroy() }
+                holder[0] = null
             }
-            Text(
-                text = relativeTime(item.pubDate).format(context),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
         AndroidView(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
                 WebView(ctx).apply {
-                    loadDataWithBaseURL(serverUrl, rewriteBodyImages(item.body), "text/html", "UTF-8", null)
+                    settings.javaScriptEnabled = true
+                    holder[0] = this
+                    loadDataWithBaseURL(serverUrl, html, "text/html", "UTF-8", null)
                 }
             },
         )
     }
 }
 
+// Single-scroll reader HTML: optional hero image, title, meta and the article body.
+private fun buildReaderHtml(context: Context, item: ItemEntity, body: String): String {
+    val mediaThumb = item.mediaThumbnail
+    val bodyFirstRaw = firstImageUrl(body)
+    val heroUrl = mediaThumb ?: bodyFirstRaw?.let { unpackImageUrl(it) }
+    var content = rewriteBodyImages(body)
+    if (mediaThumb == null && bodyFirstRaw != null) {
+        content = stripFirstImage(content)
+    }
+    val time = relativeTime(item.pubDate).format(context)
+    val meta = buildString {
+        if (item.author.isNotBlank()) append(escapeHtml(item.author)).append(" · ")
+        append(time)
+    }
+    return buildString {
+        append("<!DOCTYPE html><html><head><meta charset=\"utf-8\">")
+        append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
+        append("<style>body{font-family:-apple-system,Roboto,sans-serif;margin:16px;line-height:1.6;color:#222;}")
+        append("img,video{max-width:100%;height:auto;border-radius:8px;}")
+        append("h1{font-size:1.4em;line-height:1.3;margin:12px 0 4px;}")
+        append(".meta{color:#888;font-size:0.85em;margin:0 0 16px;}")
+        append("</style></head><body>")
+        if (heroUrl != null) append("<img src=\"").append(heroUrl).append("\">")
+        append("<h1>").append(escapeHtml(item.title)).append("</h1>")
+        append("<div class=\"meta\">").append(meta).append("</div>")
+        append(content)
+        append("</body></html>")
+    }
+}
+
+private fun stripFirstImage(html: String): String =
+    Regex("""<img[^>]*>""", RegexOption.IGNORE_CASE).replaceFirst(html, "")
+
+private fun escapeHtml(s: String): String =
+    s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
 @Composable
 private fun FloatingActions(
     item: ItemEntity,
     onToggleRead: (ItemEntity) -> Unit,
     onToggleStarred: (ItemEntity) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     Surface(
-        modifier = Modifier.padding(16.dp),
+        modifier = modifier,
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.primaryContainer,
         tonalElevation = 6.dp,
@@ -704,15 +749,13 @@ private fun FloatingActions(
             }
             IconButton(
                 onClick = {
-                    val send = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_SUBJECT, item.title)
-                        putExtra(Intent.EXTRA_TEXT, item.url)
-                    }
-                    context.startActivity(Intent.createChooser(send, null))
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)))
                 },
             ) {
-                Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.share))
+                Icon(
+                    Icons.Outlined.OpenInNew,
+                    contentDescription = stringResource(R.string.open_in_browser),
+                )
             }
         }
     }
