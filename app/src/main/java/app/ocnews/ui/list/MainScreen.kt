@@ -660,7 +660,7 @@ private fun Reader(
     val current = items.getOrNull(pagerState.currentPage) ?: items.first()
     val feedTitle = feeds.firstOrNull { it.id == current.feedId }?.title
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ReaderTopBar(
                 item = current,
@@ -669,9 +669,23 @@ private fun Reader(
                 onToggleRead = onToggleRead,
                 onFetchFull = { onFetchFull(current.id) },
             )
+            val scope = rememberCoroutineScope()
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.weight(1f),
+                userScrollEnabled = false,
+                modifier = Modifier.weight(1f).pointerInput(items.size) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+                            val target = kotlin.math.round(position).toInt().coerceIn(0, items.lastIndex)
+                            scope.launch { pagerState.animateScrollToPage(target) }
+                        },
+                        onHorizontalDrag = { change, amount ->
+                            change.consume()
+                            pagerState.dispatchRawDelta(-amount)
+                        },
+                    )
+                },
                 key = { page -> items[page].id },
             ) { page ->
                 val pageItem = items[page]
@@ -707,12 +721,17 @@ private fun ReaderTopBar(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
     ) {
         IconButton(onClick = onBack) {
-            Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+            Icon(
+                Icons.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.back),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
         }
         Text(
             text = feedTitle ?: stringResource(R.string.feed),
             style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
+            color = MaterialTheme.colorScheme.onSurface,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
@@ -726,11 +745,19 @@ private fun ReaderTopBar(
                 context.startActivity(Intent.createChooser(send, null))
             },
         ) {
-            Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.share))
+            Icon(
+                Icons.Outlined.Share,
+                contentDescription = stringResource(R.string.share),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
         }
         Box {
             IconButton(onClick = { menuOpen = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = null)
+                Icon(
+                    Icons.Filled.MoreVert,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
@@ -787,6 +814,7 @@ private fun ReaderPage(item: ItemEntity, serverUrl: String, isDark: Boolean, bod
                 WebView(ctx).apply {
                     settings.javaScriptEnabled = true
                     setBackgroundColor(bgColor)
+                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
                     holder[0] = this
                     loadDataWithBaseURL(serverUrl, html, "text/html", "UTF-8", null)
                 }
