@@ -84,6 +84,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -123,6 +124,7 @@ fun MainScreen(
     starredCount: Int,
     serverUrl: String,
     settings: AppSettings,
+    isDark: Boolean,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     fullContent: Map<Long, String>,
@@ -139,7 +141,6 @@ fun MainScreen(
 ) {
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
     var showAddFeed by remember { mutableStateOf(false) }
-    var showAbout by remember { mutableStateOf(false) }
     var searchActive by remember { mutableStateOf(false) }
     var profileMenuOpen by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
@@ -151,10 +152,6 @@ fun MainScreen(
             viewModel = addFeedViewModel,
             onDismiss = { showAddFeed = false },
         )
-    }
-
-    if (showAbout) {
-        AboutDialog(onDismiss = { showAbout = false })
     }
 
     if (confirmLogout) {
@@ -191,7 +188,6 @@ fun MainScreen(
                         coroutineScope.launch { drawerState.close() }
                     },
                     onOpenSettings = onOpenSettings,
-                    onOpenAbout = { showAbout = true },
                 )
             }
         },
@@ -215,6 +211,14 @@ fun MainScreen(
                                         unfocusedIndicatorColor = Color.Transparent,
                                     ),
                                     modifier = Modifier.fillMaxWidth(),
+                                )
+                            } else if (scope == Scope.All) {
+                                Text(
+                                    text = if (onlyUnread) stringResource(R.string.unread_articles)
+                                    else stringResource(R.string.all_articles),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.clickable { onToggleOnlyUnread() },
                                 )
                             } else {
                                 Text(
@@ -242,12 +246,6 @@ fun MainScreen(
                             if (searchActive) {
                                 // Search mode: no other actions.
                             } else {
-                                TextButton(onClick = onToggleOnlyUnread) {
-                                    Text(
-                                        if (onlyUnread) stringResource(R.string.unread)
-                                        else stringResource(R.string.all)
-                                    )
-                                }
                                 IconButton(onClick = { searchActive = true }) {
                                     Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
                                 }
@@ -316,6 +314,7 @@ fun MainScreen(
                 initialIndex = selectedIndex ?: 0,
                 feeds = feeds,
                 serverUrl = serverUrl,
+                isDark = isDark,
                 fullContent = fullContent,
                 onFetchFull = onFetchFull,
                 onBack = { selectedIndex = null },
@@ -327,18 +326,6 @@ fun MainScreen(
 }
 
 @Composable
-private fun AboutDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.about)) },
-        text = { Text(stringResource(R.string.about_text, BuildConfig.VERSION_NAME)) },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
-        },
-    )
-}
-
-@Composable
 private fun DrawerContent(
     folders: List<FolderEntity>,
     feeds: List<FeedEntity>,
@@ -347,9 +334,8 @@ private fun DrawerContent(
     starredCount: Int,
     onSelectScope: (Scope) -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenAbout: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().padding(vertical = 12.dp)) {
+    Column(Modifier.fillMaxSize().padding(vertical = 8.dp)) {
         Column(
             Modifier
                 .weight(1f)
@@ -358,116 +344,135 @@ private fun DrawerContent(
         ) {
             Text(
                 stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             )
-            NavigationDrawerItem(
-                label = { DrawerLabel(stringResource(R.string.all_articles)) },
-                icon = { Icon(Icons.Outlined.WatchLater, contentDescription = null, modifier = Modifier.size(20.dp)) },
-                badge = { DrawerBadge(unreadCount) },
+            DrawerRow(
+                icon = Icons.Outlined.WatchLater,
+                label = stringResource(R.string.all_articles),
+                badge = unreadCount,
                 selected = scope == Scope.All,
                 onClick = { onSelectScope(Scope.All) },
             )
-            NavigationDrawerItem(
-                label = { DrawerLabel(stringResource(R.string.starred)) },
-                icon = { Icon(Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(20.dp)) },
-                badge = { DrawerBadge(starredCount) },
+            DrawerRow(
+                icon = Icons.Filled.Star,
+                label = stringResource(R.string.starred),
+                badge = starredCount,
                 selected = scope == Scope.Starred,
                 onClick = { onSelectScope(Scope.Starred) },
             )
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(Modifier.padding(vertical = 6.dp))
 
             feeds.filter { it.folderId == null }.forEach { feed ->
-                DrawerFeedItem(feed, scope, onSelectScope)
+                DrawerFeedRow(feed, scope, onSelectScope)
             }
 
             folders.forEach { folder ->
                 val folderFeeds = feeds.filter { it.folderId == folder.id }
-                NavigationDrawerItem(
-                    label = { DrawerLabel(folder.name) },
-                    icon = { Icon(Icons.Outlined.Folder, contentDescription = null, modifier = Modifier.size(20.dp)) },
-                    badge = { DrawerBadge(folderFeeds.sumOf { it.unreadCount }.toInt()) },
+                DrawerRow(
+                    icon = Icons.Outlined.Folder,
+                    label = folder.name,
+                    badge = folderFeeds.sumOf { it.unreadCount }.toInt(),
                     selected = scope == Scope.Folder(folder.id),
                     onClick = { onSelectScope(Scope.Folder(folder.id)) },
                 )
                 folderFeeds.forEach { feed ->
-                    DrawerFeedItem(feed, scope, onSelectScope, indented = true)
+                    DrawerFeedRow(feed, scope, onSelectScope, indented = true)
                 }
             }
         }
 
         HorizontalDivider()
-        Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-            NavigationDrawerItem(
-                label = { DrawerLabel(stringResource(R.string.settings)) },
-                icon = { Icon(Icons.Outlined.Settings, contentDescription = null, modifier = Modifier.size(20.dp)) },
+        Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+            DrawerRow(
+                icon = Icons.Outlined.Settings,
+                label = stringResource(R.string.settings),
+                badge = 0,
                 selected = false,
                 onClick = onOpenSettings,
-            )
-            NavigationDrawerItem(
-                label = { DrawerLabel(stringResource(R.string.about)) },
-                icon = { Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(20.dp)) },
-                selected = false,
-                onClick = onOpenAbout,
             )
         }
     }
 }
 
 @Composable
-private fun DrawerLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
-}
-
-@Composable
-private fun DrawerBadge(count: Int) {
-    if (count > 0) {
+private fun DrawerRow(
+    icon: ImageVector,
+    label: String,
+    badge: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(10.dp))
         Text(
-            text = count.toString(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
+        if (badge > 0) {
+            Text(
+                text = badge.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
 @Composable
-private fun DrawerFeedItem(
+private fun DrawerFeedRow(
     feed: FeedEntity,
     scope: Scope,
     onSelectScope: (Scope) -> Unit,
     indented: Boolean = false,
 ) {
-    NavigationDrawerItem(
-        icon = {
-            if (feed.faviconLink.isNotBlank()) {
-                AsyncImage(
-                    model = feed.faviconLink,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                )
-            } else {
-                Icon(Icons.Outlined.Folder, contentDescription = null, modifier = Modifier.size(20.dp))
-            }
-        },
-        label = {
-            Text(
-                text = feed.title,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = if (indented) Modifier.padding(start = 8.dp) else Modifier,
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(if (scope == Scope.Feed(feed.id)) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+            .clickable { onSelectScope(Scope.Feed(feed.id)) }
+            .padding(start = if (indented) 24.dp else 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (feed.faviconLink.isNotBlank()) {
+            AsyncImage(
+                model = feed.faviconLink,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
             )
-        },
-        badge = { DrawerBadge(feed.unreadCount.toInt()) },
-        selected = scope == Scope.Feed(feed.id),
-        onClick = { onSelectScope(Scope.Feed(feed.id)) },
-    )
+        } else {
+            Icon(Icons.Outlined.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = feed.title,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (feed.unreadCount > 0) {
+            Text(
+                text = feed.unreadCount.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 @Composable
@@ -639,6 +644,7 @@ private fun Reader(
     initialIndex: Int,
     feeds: List<FeedEntity>,
     serverUrl: String,
+    isDark: Boolean,
     fullContent: Map<Long, String>,
     onFetchFull: (Long) -> Unit,
     onBack: () -> Unit,
@@ -696,6 +702,7 @@ private fun Reader(
                 ReaderPage(
                     item = pageItem,
                     serverUrl = serverUrl,
+                    isDark = isDark,
                     body = fullContent[pageItem.id] ?: pageItem.body,
                 )
             }
@@ -784,9 +791,10 @@ private fun ReaderTopBar(
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun ReaderPage(item: ItemEntity, serverUrl: String, body: String) {
+private fun ReaderPage(item: ItemEntity, serverUrl: String, isDark: Boolean, body: String) {
     val context = LocalContext.current
-    val html = remember(item.id, body) { buildReaderHtml(context, item, body) }
+    val html = remember(item.id, body, isDark) { buildReaderHtml(context, item, body, isDark) }
+    val bgColor = if (isDark) android.graphics.Color.parseColor("#121212") else android.graphics.Color.WHITE
     // Recreate the WebView when the body changes (fetch), and destroy it on release
     // to avoid leaking native memory while swiping between articles.
     key(html) {
@@ -802,6 +810,7 @@ private fun ReaderPage(item: ItemEntity, serverUrl: String, body: String) {
             factory = { ctx ->
                 WebView(ctx).apply {
                     settings.javaScriptEnabled = true
+                    setBackgroundColor(bgColor)
                     holder[0] = this
                     loadDataWithBaseURL(serverUrl, html, "text/html", "UTF-8", null)
                 }
@@ -811,7 +820,7 @@ private fun ReaderPage(item: ItemEntity, serverUrl: String, body: String) {
 }
 
 // Single-scroll reader HTML: optional hero image, title, meta and the article body.
-private fun buildReaderHtml(context: Context, item: ItemEntity, body: String): String {
+private fun buildReaderHtml(context: Context, item: ItemEntity, body: String, dark: Boolean): String {
     val mediaThumb = item.mediaThumbnail
     val bodyFirstRaw = firstImageUrl(body)
     val heroUrl = mediaThumb ?: bodyFirstRaw?.let { unpackImageUrl(it) }
@@ -824,13 +833,19 @@ private fun buildReaderHtml(context: Context, item: ItemEntity, body: String): S
         if (item.author.isNotBlank()) append(escapeHtml(item.author)).append(" · ")
         append(time)
     }
+    val bg = if (dark) "#121212" else "#FFFFFF"
+    val fg = if (dark) "#E6E1E5" else "#222222"
+    val metaColor = if (dark) "#9E9E9E" else "#888888"
+    val linkColor = if (dark) "#D0BCFF" else "#1A73E8"
     return buildString {
         append("<!DOCTYPE html><html><head><meta charset=\"utf-8\">")
         append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
-        append("<style>body{font-family:-apple-system,Roboto,sans-serif;margin:16px;line-height:1.6;color:#222;}")
+        append("<style>html,body{background:").append(bg).append(";}")
+        append("body{font-family:-apple-system,Roboto,sans-serif;margin:16px;line-height:1.6;color:").append(fg).append(";}")
+        append("a{color:").append(linkColor).append(";}")
         append("img,video{max-width:100%;height:auto;border-radius:8px;}")
-        append("h1{font-size:1.4em;line-height:1.3;margin:12px 0 4px;}")
-        append(".meta{color:#888;font-size:0.85em;margin:0 0 16px;}")
+        append("h1{font-size:1.4em;line-height:1.3;margin:12px 0 4px;color:").append(fg).append(";}")
+        append(".meta{color:").append(metaColor).append(";font-size:0.85em;margin:0 0 16px;}")
         append("</style></head><body>")
         append("<h1>").append(escapeHtml(item.title)).append("</h1>")
         append("<div class=\"meta\">").append(meta).append("</div>")

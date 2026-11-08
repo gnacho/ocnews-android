@@ -10,6 +10,7 @@
 
     <!-- Navigation / list -->
     <string name="all_articles">Todos los artículos</string>
+    <string name="unread_articles">Artículos no leídos</string>
     <string name="starred">Destacados</string>
     <string name="import_opml">Importar OPML</string>
     <string name="settings">Ajustes</string>
@@ -71,6 +72,9 @@
 
     <!-- Settings -->
     <string name="section_general">General</string>
+    <string name="new_feed">Nueva fuente</string>
+    <string name="new_folder">Nueva carpeta</string>
+    <string name="folder_name">Nombre de la carpeta</string>
     <string name="sync_on_start">Sincronizar al inicio</string>
     <string name="only_unread_default">Mostrar sólo artículos no leídos</string>
     <string name="swipe_right_action">Acción al deslizar a la derecha</string>
