@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,7 +30,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.FileDownload
@@ -55,6 +59,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -66,6 +72,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -98,6 +105,8 @@ fun MainScreen(
     starredCount: Int,
     username: String,
     serverUrl: String,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     addFeedViewModel: AddFeedViewModel,
     onSelectScope: (Scope) -> Unit,
     onToggleOnlyUnread: () -> Unit,
@@ -108,9 +117,10 @@ fun MainScreen(
     onImportOpml: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
-    var selectedItem by remember { mutableStateOf<ItemEntity?>(null) }
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
     var showAddFeed by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var searchActive by remember { mutableStateOf(false) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
 
@@ -147,34 +157,68 @@ fun MainScreen(
             }
         },
     ) {
-        val current = selectedItem
+        val current = selectedIndex?.let { items.getOrNull(it) }
         if (current == null) {
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = { Text(scopeLabel(scope, folders)) },
+                        title = {
+                            if (searchActive) {
+                                TextField(
+                                    value = searchQuery,
+                                    onValueChange = onSearchQueryChange,
+                                    placeholder = { Text(stringResource(R.string.search_hint)) },
+                                    singleLine = true,
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            } else {
+                                Text(scopeLabel(scope, folders))
+                            }
+                        },
                         navigationIcon = {
-                            IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
-                                Text("☰")
+                            if (searchActive) {
+                                IconButton(onClick = {
+                                    onSearchQueryChange("")
+                                    searchActive = false
+                                }) {
+                                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close))
+                                }
+                            } else {
+                                IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
+                                    Text("☰")
+                                }
                             }
                         },
                         actions = {
-                            IconButton(onClick = { showAddFeed = true }) {
-                                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_feed))
-                            }
-                            TextButton(onClick = onToggleOnlyUnread) {
-                                Text(
-                                    if (onlyUnread) stringResource(R.string.unread)
-                                    else stringResource(R.string.all)
+                            if (searchActive) {
+                                // Search mode: no other actions.
+                            } else {
+                                IconButton(onClick = { searchActive = true }) {
+                                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
+                                }
+                                IconButton(onClick = { showAddFeed = true }) {
+                                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_feed))
+                                }
+                                TextButton(onClick = onToggleOnlyUnread) {
+                                    Text(
+                                        if (onlyUnread) stringResource(R.string.unread)
+                                        else stringResource(R.string.all)
+                                    )
+                                }
+                                IconButton(onClick = onSync, enabled = !syncing) {
+                                    Text(if (syncing) "…" else "↻")
+                                }
+                                UserAvatar(
+                                    username = username,
+                                    onClick = { coroutineScope.launch { drawerState.open() } },
                                 )
                             }
-                            IconButton(onClick = onSync, enabled = !syncing) {
-                                Text(if (syncing) "…" else "↻")
-                            }
-                            UserAvatar(
-                                username = username,
-                                onClick = { coroutineScope.launch { drawerState.open() } },
-                            )
                         },
                     )
                 },
@@ -185,17 +229,19 @@ fun MainScreen(
                         feeds = feeds,
                         onToggleRead = onToggleRead,
                         onToggleStarred = onToggleStarred,
-                        onItemClick = { selectedItem = it },
+                        onItemClick = { item ->
+                            selectedIndex = items.indexOfFirst { it.id == item.id }.takeIf { it >= 0 }
+                        },
                     )
                 }
             }
         } else {
-            val feed = feeds.firstOrNull { it.id == current.feedId }
             Reader(
-                item = current,
-                feedTitle = feed?.title,
+                items = items,
+                initialIndex = selectedIndex ?: 0,
+                feeds = feeds,
                 serverUrl = serverUrl,
-                onBack = { selectedItem = null },
+                onBack = { selectedIndex = null },
                 onToggleRead = onToggleRead,
                 onToggleStarred = onToggleStarred,
             )
@@ -474,150 +520,199 @@ private fun rewriteBodyImages(html: String): String =
         m.groupValues[1] + unpackImageUrl(m.groupValues[2]) + m.groupValues[3]
     }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun Reader(
-    item: ItemEntity,
-    feedTitle: String?,
+    items: List<ItemEntity>,
+    initialIndex: Int,
+    feeds: List<FeedEntity>,
     serverUrl: String,
     onBack: () -> Unit,
     onToggleRead: (ItemEntity) -> Unit,
     onToggleStarred: (ItemEntity) -> Unit,
 ) {
-    val context = LocalContext.current
-    var menuOpen by remember { mutableStateOf(false) }
-    val heroUrl = item.mediaThumbnail ?: firstImageUrl(item.body)?.let { unpackImageUrl(it) }
     BackHandler(onBack = onBack)
+    if (items.isEmpty()) {
+        onBack()
+        return
+    }
+    val pagerState = rememberPagerState(initialPage = initialIndex.coerceIn(0, items.lastIndex)) { items.size }
+    val current = items.getOrNull(pagerState.currentPage) ?: items.first()
+    val feedTitle = feeds.firstOrNull { it.id == current.feedId }?.title
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+            ReaderTopBar(
+                item = current,
+                feedTitle = feedTitle,
+                onBack = onBack,
+                onToggleRead = onToggleRead,
+            )
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f),
+                key = { page -> items[page].id },
+            ) { page ->
+                ReaderPage(items[page], serverUrl)
+            }
+        }
+        Box(Modifier.align(Alignment.BottomEnd)) {
+            FloatingActions(
+                item = current,
+                onToggleRead = onToggleRead,
+                onToggleStarred = onToggleStarred,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReaderTopBar(
+    item: ItemEntity,
+    feedTitle: String?,
+    onBack: () -> Unit,
+    onToggleRead: (ItemEntity) -> Unit,
+) {
+    val context = LocalContext.current
+    var menuOpen by remember { mutableStateOf(false) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+        }
+        Text(
+            text = feedTitle ?: stringResource(R.string.feed),
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(
+            onClick = {
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, item.title)
+                    putExtra(Intent.EXTRA_TEXT, item.url)
                 }
-                Text(
-                    text = feedTitle ?: stringResource(R.string.feed),
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(
+                context.startActivity(Intent.createChooser(send, null))
+            },
+        ) {
+            Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.share))
+        }
+        Box {
+            IconButton(onClick = { menuOpen = true }) {
+                Icon(Icons.Filled.MoreVert, contentDescription = null)
+            }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.open_original)) },
                     onClick = {
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_SUBJECT, item.title)
-                            putExtra(Intent.EXTRA_TEXT, item.url)
-                        }
-                        context.startActivity(Intent.createChooser(send, null))
+                        menuOpen = false
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)))
                     },
-                ) {
-                    Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.share))
-                }
-                Box {
-                    IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = null)
-                    }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.open_original)) },
-                            onClick = {
-                                menuOpen = false
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)))
-                            },
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (item.unread) R.string.mark_read else R.string.mark_unread
+                            )
                         )
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    stringResource(
-                                        if (item.unread) R.string.mark_read else R.string.mark_unread
-                                    )
-                                )
-                            },
-                            onClick = {
-                                menuOpen = false
-                                onToggleRead(item)
-                            },
-                        )
-                    }
-                }
-            }
-
-            if (heroUrl != null) {
-                AsyncImage(
-                    model = heroUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                    },
+                    onClick = {
+                        menuOpen = false
+                        onToggleRead(item)
+                    },
                 )
             }
+        }
+    }
+}
 
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun ReaderPage(item: ItemEntity, serverUrl: String) {
+    val context = LocalContext.current
+    val heroUrl = item.mediaThumbnail ?: firstImageUrl(item.body)?.let { unpackImageUrl(it) }
+    Column(Modifier.fillMaxSize()) {
+        if (heroUrl != null) {
+            AsyncImage(
+                model = heroUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(220.dp),
+            )
+        }
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            if (item.author.isNotBlank()) {
                 Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                if (item.author.isNotBlank()) {
-                    Text(
-                        text = item.author,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(
-                    text = relativeTime(item.pubDate).format(context),
-                    style = MaterialTheme.typography.bodySmall,
+                    text = item.author,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-
-            AndroidView(
-                modifier = Modifier.weight(1f),
-                factory = { ctx ->
-                    WebView(ctx).apply {
-                        loadDataWithBaseURL(serverUrl, rewriteBodyImages(item.body), "text/html", "UTF-8", null)
-                    }
-                },
+            Text(
+                text = relativeTime(item.pubDate).format(context),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        AndroidView(
+            modifier = Modifier.weight(1f),
+            factory = { ctx ->
+                WebView(ctx).apply {
+                    loadDataWithBaseURL(serverUrl, rewriteBodyImages(item.body), "text/html", "UTF-8", null)
+                }
+            },
+        )
+    }
+}
 
-        Surface(
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            tonalElevation = 6.dp,
-        ) {
-            Row(Modifier.padding(horizontal = 4.dp)) {
-                IconButton(onClick = { onToggleStarred(item) }) {
-                    Icon(
-                        imageVector = if (item.starred) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                        contentDescription = stringResource(R.string.star),
-                    )
-                }
-                IconButton(onClick = { onToggleRead(item) }) {
-                    Icon(
-                        imageVector = if (item.unread) Icons.Outlined.CheckCircle else Icons.Filled.CheckCircle,
-                        contentDescription = stringResource(
-                            if (item.unread) R.string.mark_read else R.string.mark_unread
-                        ),
-                    )
-                }
-                IconButton(
-                    onClick = {
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_SUBJECT, item.title)
-                            putExtra(Intent.EXTRA_TEXT, item.url)
-                        }
-                        context.startActivity(Intent.createChooser(send, null))
-                    },
-                ) {
-                    Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.share))
-                }
+@Composable
+private fun FloatingActions(
+    item: ItemEntity,
+    onToggleRead: (ItemEntity) -> Unit,
+    onToggleStarred: (ItemEntity) -> Unit,
+) {
+    val context = LocalContext.current
+    Surface(
+        modifier = Modifier.padding(16.dp),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        tonalElevation = 6.dp,
+    ) {
+        Row(Modifier.padding(horizontal = 4.dp)) {
+            IconButton(onClick = { onToggleStarred(item) }) {
+                Icon(
+                    imageVector = if (item.starred) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                    contentDescription = stringResource(R.string.star),
+                )
+            }
+            IconButton(onClick = { onToggleRead(item) }) {
+                Icon(
+                    imageVector = if (item.unread) Icons.Outlined.CheckCircle else Icons.Filled.CheckCircle,
+                    contentDescription = stringResource(
+                        if (item.unread) R.string.mark_read else R.string.mark_unread
+                    ),
+                )
+            }
+            IconButton(
+                onClick = {
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_SUBJECT, item.title)
+                        putExtra(Intent.EXTRA_TEXT, item.url)
+                    }
+                    context.startActivity(Intent.createChooser(send, null))
+                },
+            ) {
+                Icon(Icons.Outlined.Share, contentDescription = stringResource(R.string.share))
             }
         }
     }

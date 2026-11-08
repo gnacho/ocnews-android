@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -29,6 +28,7 @@ fun filterItems(
     feeds: List<FeedEntity>,
     scope: Scope,
     onlyUnread: Boolean,
+    query: String = "",
 ): List<ItemEntity> {
     val scoped = when (scope) {
         Scope.All -> items
@@ -39,12 +39,18 @@ fun filterItems(
             items.filter { it.feedId in feedIds }
         }
     }
-    return if (onlyUnread) scoped.filter { it.unread } else scoped
+    val unreadFiltered = if (onlyUnread) scoped.filter { it.unread } else scoped
+    val q = query.trim()
+    if (q.isEmpty()) return unreadFiltered
+    return unreadFiltered.filter {
+        it.title.contains(q, ignoreCase = true) || it.author.contains(q, ignoreCase = true)
+    }
 }
 
 class ListViewModel(private val repository: NewsRepository) : ViewModel() {
     private val scope = MutableStateFlow<Scope>(Scope.All)
     private val onlyUnread = MutableStateFlow(false)
+    private val _searchQuery = MutableStateFlow("")
     private val _syncing = MutableStateFlow(false)
 
     init {
@@ -54,6 +60,7 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
 
     val scopeState: StateFlow<Scope> = scope
     val onlyUnreadState: StateFlow<Boolean> = onlyUnread
+    val searchQuery: StateFlow<String> = _searchQuery
     val syncing: StateFlow<Boolean> = _syncing
 
     val folders: StateFlow<List<FolderEntity>> = repository.observeFolders()
@@ -62,25 +69,21 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
     val feeds: StateFlow<List<FeedEntity>> = repository.observeFeeds()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val unreadCount: StateFlow<Int> = repository.observeUnread()
-        .map { it.size }
+    val unreadCount: StateFlow<Int> = repository.observeUnreadCount()
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
-    val starredCount: StateFlow<Int> = repository.observeStarred()
-        .map { it.size }
+    val starredCount: StateFlow<Int> = repository.observeStarredCount()
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
-    val items: StateFlow<List<ItemEntity>> =
-        combine(scope, onlyUnread, repository.observeFeeds()) { s, u, feeds -> Triple(s, u, feeds) }
-            .flatMapLatest { (s, u, feeds) ->
-                when (s) {
-                    Scope.All -> repository.observeItems()
-                    Scope.Starred -> repository.observeStarred()
-                    is Scope.Feed -> repository.observeItemsByFeed(s.id)
-                    is Scope.Folder -> repository.observeItems()
-                }.map { list -> filterItems(list, feeds, s, u) }
-            }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val items: StateFlow<List<ItemEntity>> = combine(
+        repository.observeItems(),
+        repository.observeFeeds(),
+        scope,
+        onlyUnread,
+        _searchQuery,
+    ) { list, feeds, s, u, q ->
+        filterItems(list, feeds, s, u, q)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun selectScope(s: Scope) {
         scope.value = s
@@ -88,6 +91,10 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
 
     fun toggleOnlyUnread() {
         onlyUnread.value = !onlyUnread.value
+    }
+
+    fun setSearchQuery(q: String) {
+        _searchQuery.value = q
     }
 
     fun toggleRead(item: ItemEntity) {
@@ -103,6 +110,9 @@ class ListViewModel(private val repository: NewsRepository) : ViewModel() {
             _syncing.value = true
             try {
                 repository.sync()
+            } catch (e: Exception) {
+                // Network/API failures must not crash the app; the list keeps cached data.
+                android.util.Log.w("OCNEWS", "sync failed: ${e.message}")
             } finally {
                 _syncing.value = false
             }

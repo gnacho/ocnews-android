@@ -91,6 +91,7 @@ class MainActivity : ComponentActivity() {
                         val syncing by listViewModel.syncing.collectAsStateWithLifecycle()
                         val unreadCount by listViewModel.unreadCount.collectAsStateWithLifecycle()
                         val starredCount by listViewModel.starredCount.collectAsStateWithLifecycle()
+                        val searchQuery by listViewModel.searchQuery.collectAsStateWithLifecycle()
 
                         val context = LocalContext.current
                         val opmlLauncher = rememberLauncherForActivityResult(
@@ -128,6 +129,8 @@ class MainActivity : ComponentActivity() {
                             starredCount = starredCount,
                             username = currentSession.username,
                             serverUrl = currentSession.serverUrl,
+                            searchQuery = searchQuery,
+                            onSearchQueryChange = listViewModel::setSearchQuery,
                             addFeedViewModel = addFeedViewModel,
                             onSelectScope = listViewModel::selectScope,
                             onToggleOnlyUnread = listViewModel::toggleOnlyUnread,

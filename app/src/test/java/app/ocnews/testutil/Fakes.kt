@@ -115,6 +115,8 @@ class FakeItemDao : ItemDao {
     override fun getByFeed(feedId: Long): Flow<List<ItemEntity>> = emptyFlow()
     override suspend fun getById(id: Long): ItemEntity? = items.firstOrNull { it.id == id }
     override suspend fun getHighestLastModified(): Long? = items.maxOfOrNull { it.lastModified }
+    override fun observeUnreadCount(): Flow<Int> = kotlinx.coroutines.flow.flowOf(items.count { it.unread })
+    override fun observeStarredCount(): Flow<Int> = kotlinx.coroutines.flow.flowOf(items.count { it.starred })
     override suspend fun setUnread(id: Long, unread: Boolean) { setUnreadCalls.add(id to unread) }
     override suspend fun setStarred(id: Long, starred: Boolean) { setStarredCalls.add(id to starred) }
     override suspend fun getPendingUnread(): List<ItemEntity> = items.filter { it.unreadPending }

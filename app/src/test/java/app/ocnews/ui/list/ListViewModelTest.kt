@@ -78,6 +78,17 @@ class ListViewModelTest {
         assertEquals(listOf(1L), result.map { it.id })
     }
 
+    @Test
+    fun `filterItems query matches title and author case-insensitively`() {
+        val items = listOf(
+            item(1, unread = true).copy(title = "Butterflies", author = "Alice"),
+            item(2, unread = true).copy(title = "Other", author = "Bob"),
+            item(3, unread = true).copy(title = "Unrelated", author = "Alice Smith"),
+        )
+        val result = filterItems(items, emptyList(), Scope.All, onlyUnread = false, query = "alice")
+        assertEquals(listOf(1L, 3L), result.map { it.id })
+    }
+
     // --- ViewModel ---
 
     @OptIn(ExperimentalCoroutinesApi::class)
