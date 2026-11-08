@@ -29,6 +29,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
@@ -92,18 +93,20 @@ fun MainScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            DrawerContent(
-                folders = folders,
-                feeds = feeds,
-                scope = scope,
-                onSelectScope = { s ->
-                    onSelectScope(s)
-                    coroutineScope.launch { drawerState.close() }
-                },
-                onLogout = onLogout,
-                onImportOpml = onImportOpml,
-                onOpenSettings = onOpenSettings,
-            )
+            ModalDrawerSheet {
+                DrawerContent(
+                    folders = folders,
+                    feeds = feeds,
+                    scope = scope,
+                    onSelectScope = { s ->
+                        onSelectScope(s)
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    onLogout = onLogout,
+                    onImportOpml = onImportOpml,
+                    onOpenSettings = onOpenSettings,
+                )
+            }
         },
     ) {
         Scaffold(
