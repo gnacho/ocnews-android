@@ -669,33 +669,9 @@ private fun Reader(
                 onToggleRead = onToggleRead,
                 onFetchFull = { onFetchFull(current.id) },
             )
-            val scope = rememberCoroutineScope()
             HorizontalPager(
                 state = pagerState,
-                userScrollEnabled = false,
-                modifier = Modifier.weight(1f).pointerInput(items.size) {
-                    var accumulated = 0f
-                    detectHorizontalDragGestures(
-                        onDragStart = { accumulated = 0f },
-                        onDragEnd = {
-                            val target = when {
-                                accumulated < -150f -> pagerState.currentPage + 1
-                                accumulated > 150f -> pagerState.currentPage - 1
-                                else -> null
-                            }
-                            if (target != null) {
-                                scope.launch {
-                                    pagerState.animateScrollToPage(target.coerceIn(0, items.lastIndex))
-                                }
-                            }
-                            accumulated = 0f
-                        },
-                        onHorizontalDrag = { change, amount ->
-                            accumulated += amount
-                            change.consume()
-                        },
-                    )
-                },
+                modifier = Modifier.weight(1f),
                 key = { page -> items[page].id },
             ) { page ->
                 val pageItem = items[page]
