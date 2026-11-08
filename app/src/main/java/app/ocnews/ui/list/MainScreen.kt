@@ -1,24 +1,16 @@
 package app.ocnews.ui.list
 
-import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.webkit.WebView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -32,11 +24,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -44,10 +34,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Settings
@@ -66,7 +53,6 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -76,7 +62,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -92,12 +77,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import app.ocnews.BuildConfig
+import androidx.compose.ui.unit.sp
 import app.ocnews.R
 import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderEntity
@@ -107,8 +96,10 @@ import app.ocnews.data.settings.FeedListStyle
 import app.ocnews.data.settings.SwipeAction
 import app.ocnews.ui.addfeed.AddFeedDialog
 import app.ocnews.ui.addfeed.AddFeedViewModel
+import app.ocnews.util.firstImageUrl
 import app.ocnews.util.format
 import app.ocnews.util.relativeTime
+import app.ocnews.util.unpackImageUrl
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 
@@ -616,31 +607,6 @@ private fun ArticleRow(
     }
 }
 
-// Extracts the first <img src> from an article body to use as a hero image.
-private fun firstImageUrl(html: String): String? {
-    val regex = Regex("""<img[^>]+src\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
-    return regex.find(html)?.groupValues?.getOrNull(1)
-}
-
-// ocnews rewrites article images to its own proxy (/img?u=<encoded>), which currently
-// returns 403. Unpack the original image URL from the `u` parameter (also decodes &amp;).
-private fun unpackImageUrl(src: String): String {
-    val decoded = src.replace("&amp;", "&")
-    if (!decoded.contains("/img?")) return decoded
-    val u = Regex("""[?&]u=([^&]+)""").find(decoded)?.groupValues?.getOrNull(1) ?: return decoded
-    return try {
-        java.net.URLDecoder.decode(u, "UTF-8")
-    } catch (e: Exception) {
-        decoded
-    }
-}
-
-// Rewrites the article body's proxied image srcs to the original image URLs.
-private fun rewriteBodyImages(html: String): String =
-    Regex("""(<img[^>]*?src=["'])([^"']+)(["'])""", RegexOption.IGNORE_CASE).replace(html) { m ->
-        m.groupValues[1] + unpackImageUrl(m.groupValues[2]) + m.groupValues[3]
-    }
-
 @Composable
 private fun Reader(
     items: List<ItemEntity>,
@@ -672,36 +638,14 @@ private fun Reader(
                 onToggleRead = onToggleRead,
                 onFetchFull = { onFetchFull(current.id) },
             )
-            val scope = rememberCoroutineScope()
-            val dragState = rememberDraggableState { delta ->
-                pagerState.dispatchRawDelta(-delta)
-            }
             HorizontalPager(
                 state = pagerState,
-                userScrollEnabled = false,
-                modifier = Modifier.weight(1f).draggable(
-                    state = dragState,
-                    orientation = Orientation.Horizontal,
-                    onDragStopped = { velocity ->
-                        val currentPage = pagerState.currentPage
-                        val target = when {
-                            velocity < -500f -> currentPage + 1
-                            velocity > 500f -> currentPage - 1
-                            else -> kotlin.math.round(
-                                currentPage + pagerState.currentPageOffsetFraction
-                            ).toInt()
-                        }
-                        scope.launch {
-                            pagerState.animateScrollToPage(target.coerceIn(0, items.lastIndex))
-                        }
-                    },
-                ),
+                modifier = Modifier.weight(1f),
                 key = { page -> items[page].id },
             ) { page ->
                 val pageItem = items[page]
                 ReaderPage(
                     item = pageItem,
-                    serverUrl = serverUrl,
                     isDark = isDark,
                     body = fullContent[pageItem.id] ?: pageItem.body,
                 )
@@ -802,78 +746,94 @@ private fun ReaderTopBar(
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun ReaderPage(item: ItemEntity, serverUrl: String, isDark: Boolean, body: String) {
+private fun ReaderPage(item: ItemEntity, isDark: Boolean, body: String) {
     val context = LocalContext.current
-    val html = remember(item.id, body, isDark) { buildReaderHtml(context, item, body, isDark) }
-    val bgColor = if (isDark) android.graphics.Color.parseColor("#121212") else android.graphics.Color.WHITE
-    // Recreate the WebView when the body changes (fetch), and destroy it on release
-    // to avoid leaking native memory while swiping between articles.
-    key(html) {
-        val holder = remember { arrayOfNulls<WebView>(1) }
-        DisposableEffect(Unit) {
-            onDispose {
-                holder[0]?.let { it.stopLoading(); it.destroy() }
-                holder[0] = null
+    val heroUrl = item.mediaThumbnail ?: firstImageUrl(body)?.let { unpackImageUrl(it) }
+    val linkColor = MaterialTheme.colorScheme.primary
+    val text = remember(body, linkColor) { htmlToAnnotated(stripImages(body), linkColor) }
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
+    ) {
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (item.author.isNotBlank()) {
+            Text(
+                text = item.author,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = relativeTime(item.pubDate).format(context),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (heroUrl != null) {
+            Spacer(Modifier.height(12.dp))
+            AsyncImage(
+                model = heroUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        if (text.isNotEmpty()) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                lineHeight = 26.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+// Converts a (image-stripped) HTML body into a Compose AnnotatedString keeping bold,
+// italic and links.
+private fun htmlToAnnotated(html: String, linkColor: Color): AnnotatedString {
+    val spanned = android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY)
+    return buildAnnotatedString {
+        append(spanned.toString())
+        for (span in spanned.getSpans(0, spanned.length, Any::class.java)) {
+            val start = spanned.getSpanStart(span).coerceAtLeast(0)
+            val end = spanned.getSpanEnd(span).coerceAtMost(spanned.length)
+            if (end <= start) continue
+            when (span) {
+                is android.text.style.StyleSpan -> {
+                    val bold = span.style and android.graphics.Typeface.BOLD != 0
+                    val italic = span.style and android.graphics.Typeface.ITALIC != 0
+                    addStyle(
+                        SpanStyle(
+                            fontWeight = if (bold) FontWeight.Bold else null,
+                            fontStyle = if (italic) FontStyle.Italic else null,
+                        ),
+                        start,
+                        end,
+                    )
+                }
+                is android.text.style.URLSpan -> {
+                    addLink(LinkAnnotation.Url(span.url), start, end)
+                    addStyle(SpanStyle(color = linkColor), start, end)
+                }
             }
         }
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                WebView(ctx).apply {
-                    settings.javaScriptEnabled = true
-                    setBackgroundColor(bgColor)
-                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
-                    holder[0] = this
-                    loadDataWithBaseURL(serverUrl, html, "text/html", "UTF-8", null)
-                }
-            },
-        )
     }
 }
 
-// Single-scroll reader HTML: optional hero image, title, meta and the article body.
-private fun buildReaderHtml(context: Context, item: ItemEntity, body: String, dark: Boolean): String {
-    val mediaThumb = item.mediaThumbnail
-    val bodyFirstRaw = firstImageUrl(body)
-    val heroUrl = mediaThumb ?: bodyFirstRaw?.let { unpackImageUrl(it) }
-    var content = rewriteBodyImages(body)
-    if (mediaThumb == null && bodyFirstRaw != null) {
-        content = stripFirstImage(content)
-    }
-    val time = relativeTime(item.pubDate).format(context)
-    val meta = buildString {
-        if (item.author.isNotBlank()) append(escapeHtml(item.author)).append(" · ")
-        append(time)
-    }
-    val bg = if (dark) "#121212" else "#FFFFFF"
-    val fg = if (dark) "#E6E1E5" else "#222222"
-    val metaColor = if (dark) "#9E9E9E" else "#888888"
-    val linkColor = if (dark) "#D0BCFF" else "#1A73E8"
-    return buildString {
-        append("<!DOCTYPE html><html><head><meta charset=\"utf-8\">")
-        append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
-        append("<style>html,body{background:").append(bg).append(";}")
-        append("body{font-family:-apple-system,Roboto,sans-serif;margin:16px;line-height:1.6;color:").append(fg).append(";}")
-        append("a{color:").append(linkColor).append(";}")
-        append("img,video{max-width:100%;height:auto;border-radius:8px;}")
-        append("h1{font-size:1.4em;line-height:1.3;margin:12px 0 4px;color:").append(fg).append(";}")
-        append(".meta{color:").append(metaColor).append(";font-size:0.85em;margin:0 0 16px;}")
-        append("</style></head><body>")
-        append("<h1>").append(escapeHtml(item.title)).append("</h1>")
-        append("<div class=\"meta\">").append(meta).append("</div>")
-        if (heroUrl != null) append("<img src=\"").append(heroUrl).append("\">")
-        append(content)
-        append("</body></html>")
-    }
-}
-
-private fun stripFirstImage(html: String): String =
-    Regex("""<img[^>]*>""", RegexOption.IGNORE_CASE).replaceFirst(html, "")
-
-private fun escapeHtml(s: String): String =
-    s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+private fun stripImages(html: String): String =
+    Regex("""<img[^>]*>""", RegexOption.IGNORE_CASE).replace(html, "")
 
 @Composable
 private fun FloatingActions(
