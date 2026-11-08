@@ -18,6 +18,7 @@ import app.ocnews.data.session.SessionStore
 import app.ocnews.data.toEntity
 import app.ocnews.opml.OpmlParser
 import app.ocnews.sync.SyncEngine
+import app.ocnews.util.resolveUrl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
@@ -75,7 +76,13 @@ class NewsRepository(
 
     suspend fun sync() {
         val session = sessionStore.session.first() ?: return
-        val engine = SyncEngine(apiFactory(session), folderDao, feedDao, itemDao)
+        val engine = SyncEngine(
+            apiFactory(session),
+            folderDao,
+            feedDao,
+            itemDao,
+            resolveUrl = { path -> resolveUrl(session.serverUrl, path) },
+        )
         engine.pushPendingState()
         val hasItems = itemDao.getHighestLastModified() != null
         if (hasItems) engine.incrementalSync() else engine.initialSync()
@@ -93,9 +100,11 @@ class NewsRepository(
     fun observeItemsByFeed(feedId: Long): Flow<List<ItemEntity>> = itemDao.getByFeed(feedId)
 
     suspend fun addFeed(url: String, folderId: Long? = null) {
-        val api = currentApi() ?: return
-        val resp = api.createFeed(CreateFeedRequest(url, folderId))
-        feedDao.upsertAll(resp.feeds.map { it.toEntity() })
+        val session = sessionStore.session.first() ?: return
+        val resp = apiFactory(session).createFeed(CreateFeedRequest(url, folderId))
+        feedDao.upsertAll(
+            resp.feeds.map { it.toEntity().copy(faviconLink = resolveUrl(session.serverUrl, it.faviconLink)) }
+        )
     }
 
     suspend fun discover(url: String): List<DiscoveredFeedDto> {
