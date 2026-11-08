@@ -19,7 +19,7 @@ class AppContainer(context: Context) {
         appContext,
         OcnewsDatabase::class.java,
         "ocnews.db",
-    ).build()
+    ).addMigrations(OcnewsDatabase.MIGRATION_1_2).build()
 
     val sessionStore: SessionStore = DataStoreSessionStore(appContext)
 

@@ -6,14 +6,19 @@ import androidx.lifecycle.viewModelScope
 import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemEntity
+import app.ocnews.data.local.ItemSummary
 import app.ocnews.data.repo.NewsRepository
 import app.ocnews.data.settings.SearchScope
 import app.ocnews.data.settings.SettingsStore
 import app.ocnews.data.settings.SortOrder
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -27,16 +32,18 @@ sealed interface Scope {
     data class Folder(val id: Long) : Scope
 }
 
-// Pure filter, unit-testable without coroutines.
+// Pure filter, unit-testable without coroutines. Body matches arrive as ids
+// resolved by SQL, so the list never holds article HTML in memory.
 fun filterItems(
-    items: List<ItemEntity>,
+    items: List<ItemSummary>,
     feeds: List<FeedEntity>,
     scope: Scope,
     onlyUnread: Boolean,
     query: String = "",
     sort: SortOrder = SortOrder.NEWEST_FIRST,
     searchIn: SearchScope = SearchScope.TITLE,
-): List<ItemEntity> {
+    contentMatchIds: Set<Long> = emptySet(),
+): List<ItemSummary> {
     val scoped = when (scope) {
         Scope.All -> items
         Scope.Starred -> items.filter { it.starred }
@@ -49,10 +56,12 @@ fun filterItems(
     val unreadFiltered = if (onlyUnread) scoped.filter { it.unread } else scoped
     val q = query.trim()
     val searched = if (q.isEmpty()) unreadFiltered else unreadFiltered.filter {
+        val inTitle = it.title.contains(q, ignoreCase = true)
+        val inBody = it.id in contentMatchIds
         when (searchIn) {
-            SearchScope.TITLE -> it.title.contains(q, ignoreCase = true)
-            SearchScope.CONTENT -> it.body.contains(q, ignoreCase = true)
-            SearchScope.BOTH -> it.title.contains(q, ignoreCase = true) || it.body.contains(q, ignoreCase = true)
+            SearchScope.TITLE -> inTitle
+            SearchScope.CONTENT -> inBody
+            SearchScope.BOTH -> inTitle || inBody
         }
     }
     return when (sort) {
@@ -68,6 +77,7 @@ class ListViewModel(
     private val scope = MutableStateFlow<Scope>(Scope.All)
     private val _searchQuery = MutableStateFlow("")
     private val _fullContent = MutableStateFlow<Map<Long, String>>(emptyMap())
+    private val _itemDetails = MutableStateFlow<Map<Long, ItemEntity>>(emptyMap())
     private val _syncing = MutableStateFlow(false)
 
     private data class UiFilter(
@@ -78,6 +88,10 @@ class ListViewModel(
     )
 
     init {
+        viewModelScope.launch {
+            // Rows stored before Room v2 have no thumbnailUrl yet.
+            runCatching { repository.backfillThumbnails() }
+        }
         viewModelScope.launch {
             val s = settingsStore.settings.first()
             if (s.syncOnStart) sync()
@@ -90,6 +104,7 @@ class ListViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val searchQuery: StateFlow<String> = _searchQuery
     val fullContent: StateFlow<Map<Long, String>> = _fullContent
+    val itemDetails: StateFlow<Map<Long, ItemEntity>> = _itemDetails
     val syncing: StateFlow<Boolean> = _syncing
 
     val folders: StateFlow<List<FolderEntity>> = repository.observeFolders()
@@ -104,15 +119,34 @@ class ListViewModel(
     val starredCount: StateFlow<Int> = repository.observeStarredCount()
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
-    val items: StateFlow<List<ItemEntity>> = combine(
+    // Ids whose body matches the query, resolved in SQL with a small debounce so
+    // typing does not hit the database on every keystroke.
+    private val contentMatchIds: Flow<Set<Long>> = combine(
+        _searchQuery,
+        settingsStore.settings,
+    ) { q, s -> q.trim() to s.searchIn }
+        .debounce(250)
+        .flatMapLatest { (q, searchIn) ->
+            flow {
+                val ids = if (q.isEmpty() || searchIn == SearchScope.TITLE) {
+                    emptySet()
+                } else {
+                    runCatching { repository.searchBodyIds(q).toSet() }.getOrDefault(emptySet())
+                }
+                emit(ids)
+            }
+        }
+
+    val items: StateFlow<List<ItemSummary>> = combine(
         repository.observeItems(),
         repository.observeFeeds(),
         scope,
         combine(onlyUnreadState, _searchQuery, settingsStore.settings) { ou, q, s ->
             UiFilter(ou, q, s.sortOrder, s.searchIn)
         },
-    ) { list, feeds, sc, f ->
-        filterItems(list, feeds, sc, f.onlyUnread, f.query, f.sort, f.searchIn)
+        contentMatchIds,
+    ) { list, feeds, sc, f, matches ->
+        filterItems(list, feeds, sc, f.onlyUnread, f.query, f.sort, f.searchIn, matches)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun selectScope(s: Scope) {
@@ -139,12 +173,28 @@ class ListViewModel(
         }
     }
 
-    fun toggleRead(item: ItemEntity) {
-        viewModelScope.launch { repository.setUnread(item.id, !item.unread) }
+    // Loads the full row (with body) for the reader, once per article.
+    fun loadItemDetail(id: Long) {
+        if (_itemDetails.value.containsKey(id)) return
+        viewModelScope.launch {
+            runCatching { repository.itemById(id) }.getOrNull()?.let { item ->
+                _itemDetails.update { it + (id to item) }
+            }
+        }
     }
 
-    fun toggleStarred(item: ItemEntity) {
-        viewModelScope.launch { repository.setStarred(item.id, !item.starred) }
+    fun toggleRead(id: Long, unread: Boolean) {
+        viewModelScope.launch { repository.setUnread(id, !unread) }
+        _itemDetails.update { map ->
+            map[id]?.let { map + (id to it.copy(unread = !unread)) } ?: map
+        }
+    }
+
+    fun toggleStarred(id: Long, starred: Boolean) {
+        viewModelScope.launch { repository.setStarred(id, !starred) }
+        _itemDetails.update { map ->
+            map[id]?.let { map + (id to it.copy(starred = !starred)) } ?: map
+        }
     }
 
     fun sync() {

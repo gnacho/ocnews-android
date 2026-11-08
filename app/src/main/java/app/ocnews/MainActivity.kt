@@ -139,6 +139,7 @@ class MainActivity : ComponentActivity() {
                         val starredCount by listViewModel.starredCount.collectAsStateWithLifecycle()
                         val searchQuery by listViewModel.searchQuery.collectAsStateWithLifecycle()
                         val fullContent by listViewModel.fullContent.collectAsStateWithLifecycle()
+                        val itemDetails by listViewModel.itemDetails.collectAsStateWithLifecycle()
 
                         MainScreen(
                             folders = folders,
@@ -155,7 +156,9 @@ class MainActivity : ComponentActivity() {
                             searchQuery = searchQuery,
                             onSearchQueryChange = listViewModel::setSearchQuery,
                             fullContent = fullContent,
+                            itemDetails = itemDetails,
                             onFetchFull = listViewModel::fetchFullContent,
+                            onLoadDetail = listViewModel::loadItemDetail,
                             addFeedViewModel = addFeedViewModel,
                             onSelectScope = listViewModel::selectScope,
                             onToggleOnlyUnread = listViewModel::toggleOnlyUnread,

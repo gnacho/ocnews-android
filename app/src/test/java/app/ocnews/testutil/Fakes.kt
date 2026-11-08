@@ -5,7 +5,9 @@ import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderDao
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemDao
+import app.ocnews.data.local.ItemBodyRow
 import app.ocnews.data.local.ItemEntity
+import app.ocnews.data.local.ItemSummary
 import app.ocnews.data.remote.NewsApi
 import app.ocnews.data.remote.dto.CreateFeedRequest
 import app.ocnews.data.remote.dto.CreateFolderRequest
@@ -69,6 +71,27 @@ fun item(
     starredPending = starredPending,
 )
 
+fun summary(
+    id: Long,
+    unread: Boolean,
+    starred: Boolean = false,
+    title: String = "t$id",
+    feedId: Long = 1,
+    thumbnailUrl: String? = null,
+) = ItemSummary(
+    id = id,
+    url = "u$id",
+    title = title,
+    author = "",
+    pubDate = id,
+    feedId = feedId,
+    unread = unread,
+    starred = starred,
+    rtl = false,
+    mediaThumbnail = null,
+    thumbnailUrl = thumbnailUrl,
+)
+
 fun feed(
     id: Long,
     folderId: Long? = null,
@@ -123,10 +146,20 @@ class FakeItemDao : ItemDao {
     val setStarredCalls = mutableListOf<Pair<Long, Boolean>>()
 
     override suspend fun upsertAll(items: List<ItemEntity>) { this.items.addAll(items) }
-    override fun getAll(): Flow<List<ItemEntity>> = emptyFlow()
-    override fun getUnread(): Flow<List<ItemEntity>> = emptyFlow()
-    override fun getStarred(): Flow<List<ItemEntity>> = emptyFlow()
-    override fun getByFeed(feedId: Long): Flow<List<ItemEntity>> = emptyFlow()
+    override fun getAllSummaries(): Flow<List<ItemSummary>> = emptyFlow()
+    override fun getUnreadSummaries(): Flow<List<ItemSummary>> = emptyFlow()
+    override fun getStarredSummaries(): Flow<List<ItemSummary>> = emptyFlow()
+    override fun getByFeedSummaries(feedId: Long): Flow<List<ItemSummary>> = emptyFlow()
+    override suspend fun searchBodyIds(query: String): List<Long> =
+        items.filter { it.body.contains(query, ignoreCase = true) }.map { it.id }
+    override suspend fun getItemsMissingThumbnail(limit: Int): List<ItemBodyRow> =
+        items.filter { it.thumbnailUrl == null && it.body.contains("<img") }
+            .take(limit)
+            .map { ItemBodyRow(it.id, it.body) }
+    override suspend fun setThumbnailUrl(id: Long, thumbnailUrl: String?) {
+        val idx = items.indexOfFirst { it.id == id }
+        if (idx >= 0) items[idx] = items[idx].copy(thumbnailUrl = thumbnailUrl)
+    }
     override suspend fun getById(id: Long): ItemEntity? = items.firstOrNull { it.id == id }
     override suspend fun getHighestLastModified(): Long? = items.maxOfOrNull { it.lastModified }
     override fun observeUnreadCount(): Flow<Int> = kotlinx.coroutines.flow.flowOf(items.count { it.unread })

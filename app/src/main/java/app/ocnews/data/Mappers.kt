@@ -6,6 +6,8 @@ import app.ocnews.data.local.ItemEntity
 import app.ocnews.data.remote.dto.FeedDto
 import app.ocnews.data.remote.dto.FolderDto
 import app.ocnews.data.remote.dto.ItemDto
+import app.ocnews.util.firstImageUrl
+import app.ocnews.util.unpackImageUrl
 
 fun FolderDto.toEntity(): FolderEntity = FolderEntity(
     id = id,
@@ -44,6 +46,7 @@ fun ItemDto.toEntity(): ItemEntity = ItemEntity(
     enclosureLink = enclosureLink,
     mediaThumbnail = mediaThumbnail,
     mediaDescription = mediaDescription,
+    thumbnailUrl = firstImageUrl(body)?.let { unpackImageUrl(it) },
     feedId = feedId,
     unread = unread,
     starred = starred,

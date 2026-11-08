@@ -11,20 +11,32 @@ interface ItemDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(items: List<ItemEntity>)
 
-    @Query("SELECT * FROM item ORDER BY pubDate DESC")
-    fun getAll(): Flow<List<ItemEntity>>
+    // Lightweight list queries: no body column, so a toggle does not reload
+    // megabytes of article HTML. The reader loads the full row on demand.
+    @Query("SELECT id, url, title, author, pubDate, feedId, unread, starred, rtl, mediaThumbnail, thumbnailUrl FROM item ORDER BY pubDate DESC")
+    fun getAllSummaries(): Flow<List<ItemSummary>>
 
-    @Query("SELECT * FROM item WHERE unread = 1 ORDER BY pubDate DESC")
-    fun getUnread(): Flow<List<ItemEntity>>
+    @Query("SELECT id, url, title, author, pubDate, feedId, unread, starred, rtl, mediaThumbnail, thumbnailUrl FROM item WHERE unread = 1 ORDER BY pubDate DESC")
+    fun getUnreadSummaries(): Flow<List<ItemSummary>>
 
-    @Query("SELECT * FROM item WHERE starred = 1 ORDER BY pubDate DESC")
-    fun getStarred(): Flow<List<ItemEntity>>
+    @Query("SELECT id, url, title, author, pubDate, feedId, unread, starred, rtl, mediaThumbnail, thumbnailUrl FROM item WHERE starred = 1 ORDER BY pubDate DESC")
+    fun getStarredSummaries(): Flow<List<ItemSummary>>
 
-    @Query("SELECT * FROM item WHERE feedId = :feedId ORDER BY pubDate DESC")
-    fun getByFeed(feedId: Long): Flow<List<ItemEntity>>
+    @Query("SELECT id, url, title, author, pubDate, feedId, unread, starred, rtl, mediaThumbnail, thumbnailUrl FROM item WHERE feedId = :feedId ORDER BY pubDate DESC")
+    fun getByFeedSummaries(feedId: Long): Flow<List<ItemSummary>>
 
     @Query("SELECT * FROM item WHERE id = :id")
     suspend fun getById(id: Long): ItemEntity?
+
+    // Full-text match in the body returns only ids, keeping HTML out of memory.
+    @Query("SELECT id FROM item WHERE body LIKE '%' || :query || '%'")
+    suspend fun searchBodyIds(query: String): List<Long>
+
+    @Query("SELECT id, body FROM item WHERE thumbnailUrl IS NULL AND body LIKE '%<img%' LIMIT :limit")
+    suspend fun getItemsMissingThumbnail(limit: Int): List<ItemBodyRow>
+
+    @Query("UPDATE item SET thumbnailUrl = :thumbnailUrl WHERE id = :id")
+    suspend fun setThumbnailUrl(id: Long, thumbnailUrl: String?)
 
     @Query("SELECT MAX(lastModified) FROM item")
     suspend fun getHighestLastModified(): Long?

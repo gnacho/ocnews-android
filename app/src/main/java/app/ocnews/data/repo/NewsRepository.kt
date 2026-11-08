@@ -7,6 +7,7 @@ import app.ocnews.data.local.FolderDao
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemDao
 import app.ocnews.data.local.ItemEntity
+import app.ocnews.data.local.ItemSummary
 import app.ocnews.data.remote.NewsApi
 import app.ocnews.data.remote.dto.CreateFeedRequest
 import app.ocnews.data.remote.dto.CreateFolderRequest
@@ -19,7 +20,9 @@ import app.ocnews.data.session.SessionStore
 import app.ocnews.data.toEntity
 import app.ocnews.opml.OpmlParser
 import app.ocnews.sync.SyncEngine
+import app.ocnews.util.firstImageUrl
 import app.ocnews.util.resolveUrl
+import app.ocnews.util.unpackImageUrl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
@@ -94,12 +97,34 @@ class NewsRepository(
 
     fun observeFolders(): Flow<List<FolderEntity>> = folderDao.getAll()
     fun observeFeeds(): Flow<List<FeedEntity>> = feedDao.getAll()
-    fun observeItems(): Flow<List<ItemEntity>> = itemDao.getAll()
-    fun observeUnread(): Flow<List<ItemEntity>> = itemDao.getUnread()
-    fun observeStarred(): Flow<List<ItemEntity>> = itemDao.getStarred()
+    // Lightweight projections (no body) for the list, the unread and starred
+    // views and per-feed views.
+    fun observeItems(): Flow<List<ItemSummary>> = itemDao.getAllSummaries()
+    fun observeUnread(): Flow<List<ItemSummary>> = itemDao.getUnreadSummaries()
+    fun observeStarred(): Flow<List<ItemSummary>> = itemDao.getStarredSummaries()
     fun observeUnreadCount(): Flow<Int> = itemDao.observeUnreadCount()
     fun observeStarredCount(): Flow<Int> = itemDao.observeStarredCount()
-    fun observeItemsByFeed(feedId: Long): Flow<List<ItemEntity>> = itemDao.getByFeed(feedId)
+    fun observeItemsByFeed(feedId: Long): Flow<List<ItemSummary>> = itemDao.getByFeedSummaries(feedId)
+
+    // Full row (including the HTML body) for the reader.
+    suspend fun itemById(id: Long): ItemEntity? = itemDao.getById(id)
+
+    // Body search via SQL: returns matching ids without loading the HTML.
+    suspend fun searchBodyIds(query: String): List<Long> = itemDao.searchBodyIds(query)
+
+    // Fills thumbnailUrl for rows stored before the column existed (Room v2).
+    suspend fun backfillThumbnails(batch: Int = 200) {
+        while (true) {
+            val rows = itemDao.getItemsMissingThumbnail(batch)
+            if (rows.isEmpty()) return
+            for (row in rows) {
+                // Empty string means "checked, no image", so the row leaves the
+                // pending set even when the body has no usable image.
+                val url = firstImageUrl(row.body)?.let { unpackImageUrl(it) } ?: ""
+                itemDao.setThumbnailUrl(row.id, url)
+            }
+        }
+    }
 
     suspend fun addFeed(url: String, folderId: Long? = null) {
         val session = sessionStore.session.first() ?: return
