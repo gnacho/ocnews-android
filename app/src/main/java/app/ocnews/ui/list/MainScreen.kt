@@ -98,6 +98,9 @@ import app.ocnews.R
 import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemEntity
+import app.ocnews.data.settings.AppSettings
+import app.ocnews.data.settings.FeedListStyle
+import app.ocnews.data.settings.SwipeAction
 import app.ocnews.ui.addfeed.AddFeedDialog
 import app.ocnews.ui.addfeed.AddFeedViewModel
 import app.ocnews.util.format
@@ -118,8 +121,8 @@ fun MainScreen(
     syncing: Boolean,
     unreadCount: Int,
     starredCount: Int,
-    username: String,
     serverUrl: String,
+    settings: AppSettings,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     fullContent: Map<Long, String>,
@@ -131,13 +134,15 @@ fun MainScreen(
     onToggleStarred: (ItemEntity) -> Unit,
     onSync: () -> Unit,
     onLogout: () -> Unit,
-    onImportOpml: () -> Unit,
+    onMarkAllRead: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
     var showAddFeed by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var searchActive by remember { mutableStateOf(false) }
+    var profileMenuOpen by remember { mutableStateOf(false) }
+    var confirmLogout by remember { mutableStateOf(false) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
 
@@ -152,10 +157,29 @@ fun MainScreen(
         AboutDialog(onDismiss = { showAbout = false })
     }
 
+    if (confirmLogout) {
+        AlertDialog(
+            onDismissRequest = { confirmLogout = false },
+            title = { Text(stringResource(R.string.logout_confirm_title)) },
+            text = { Text(stringResource(R.string.logout_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmLogout = false
+                    onLogout()
+                }) { Text(stringResource(R.string.log_out)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmLogout = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet {
+            ModalDrawerSheet(modifier = Modifier.fillMaxWidth(0.8f)) {
                 DrawerContent(
                     folders = folders,
                     feeds = feeds,
@@ -166,8 +190,6 @@ fun MainScreen(
                         onSelectScope(s)
                         coroutineScope.launch { drawerState.close() }
                     },
-                    onLogout = onLogout,
-                    onImportOpml = onImportOpml,
                     onOpenSettings = onOpenSettings,
                     onOpenAbout = { showAbout = true },
                 )
@@ -220,25 +242,54 @@ fun MainScreen(
                             if (searchActive) {
                                 // Search mode: no other actions.
                             } else {
-                                IconButton(onClick = { searchActive = true }) {
-                                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
-                                }
-                                IconButton(onClick = { showAddFeed = true }) {
-                                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_feed))
-                                }
                                 TextButton(onClick = onToggleOnlyUnread) {
                                     Text(
                                         if (onlyUnread) stringResource(R.string.unread)
                                         else stringResource(R.string.all)
                                     )
                                 }
-                                IconButton(onClick = onSync, enabled = !syncing) {
-                                    Text(if (syncing) "…" else "↻")
+                                IconButton(onClick = { searchActive = true }) {
+                                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
                                 }
-                                UserAvatar(
-                                    username = username,
-                                    onClick = { coroutineScope.launch { drawerState.open() } },
-                                )
+                                Box {
+                                    IconButton(onClick = { profileMenuOpen = true }) {
+                                        Icon(Icons.Filled.MoreVert, contentDescription = null)
+                                    }
+                                    DropdownMenu(
+                                        expanded = profileMenuOpen,
+                                        onDismissRequest = { profileMenuOpen = false },
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.add_feed)) },
+                                            onClick = {
+                                                profileMenuOpen = false
+                                                showAddFeed = true
+                                            },
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.refresh)) },
+                                            onClick = {
+                                                profileMenuOpen = false
+                                                onSync()
+                                            },
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.mark_all_read)) },
+                                            onClick = {
+                                                profileMenuOpen = false
+                                                onMarkAllRead()
+                                            },
+                                        )
+                                        HorizontalDivider()
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.log_out)) },
+                                            onClick = {
+                                                profileMenuOpen = false
+                                                confirmLogout = true
+                                            },
+                                        )
+                                    }
+                                }
                             }
                         },
                     )
@@ -248,6 +299,9 @@ fun MainScreen(
                     ArticleList(
                         items = items,
                         feeds = feeds,
+                        swipeRight = settings.swipeRight,
+                        swipeLeft = settings.swipeLeft,
+                        feedListStyle = settings.feedListStyle,
                         onToggleRead = onToggleRead,
                         onToggleStarred = onToggleStarred,
                         onItemClick = { item ->
@@ -273,26 +327,6 @@ fun MainScreen(
 }
 
 @Composable
-private fun UserAvatar(username: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .padding(end = 8.dp)
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primaryContainer)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = username.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-    }
-}
-
-@Composable
 private fun AboutDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -312,34 +346,32 @@ private fun DrawerContent(
     unreadCount: Int,
     starredCount: Int,
     onSelectScope: (Scope) -> Unit,
-    onLogout: () -> Unit,
-    onImportOpml: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAbout: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().padding(vertical = 16.dp)) {
+    Column(Modifier.fillMaxSize().padding(vertical = 12.dp)) {
         Column(
             Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 8.dp),
         ) {
             Text(
                 stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
             )
             NavigationDrawerItem(
-                label = { Text(stringResource(R.string.all_articles)) },
-                icon = { Icon(Icons.Outlined.WatchLater, contentDescription = null) },
+                label = { DrawerLabel(stringResource(R.string.all_articles)) },
+                icon = { Icon(Icons.Outlined.WatchLater, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 badge = { DrawerBadge(unreadCount) },
                 selected = scope == Scope.All,
                 onClick = { onSelectScope(Scope.All) },
             )
             NavigationDrawerItem(
-                label = { Text(stringResource(R.string.starred)) },
-                icon = { Icon(Icons.Filled.Star, contentDescription = null) },
+                label = { DrawerLabel(stringResource(R.string.starred)) },
+                icon = { Icon(Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 badge = { DrawerBadge(starredCount) },
                 selected = scope == Scope.Starred,
                 onClick = { onSelectScope(Scope.Starred) },
@@ -353,8 +385,8 @@ private fun DrawerContent(
             folders.forEach { folder ->
                 val folderFeeds = feeds.filter { it.folderId == folder.id }
                 NavigationDrawerItem(
-                    label = { Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    icon = { Icon(Icons.Outlined.Folder, contentDescription = null) },
+                    label = { DrawerLabel(folder.name) },
+                    icon = { Icon(Icons.Outlined.Folder, contentDescription = null, modifier = Modifier.size(20.dp)) },
                     badge = { DrawerBadge(folderFeeds.sumOf { it.unreadCount }.toInt()) },
                     selected = scope == Scope.Folder(folder.id),
                     onClick = { onSelectScope(Scope.Folder(folder.id)) },
@@ -366,33 +398,31 @@ private fun DrawerContent(
         }
 
         HorizontalDivider()
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
             NavigationDrawerItem(
-                label = { Text(stringResource(R.string.import_opml)) },
-                icon = { Icon(Icons.Outlined.FileDownload, contentDescription = null) },
-                selected = false,
-                onClick = onImportOpml,
-            )
-            NavigationDrawerItem(
-                label = { Text(stringResource(R.string.settings)) },
-                icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                label = { DrawerLabel(stringResource(R.string.settings)) },
+                icon = { Icon(Icons.Outlined.Settings, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 selected = false,
                 onClick = onOpenSettings,
             )
             NavigationDrawerItem(
-                label = { Text(stringResource(R.string.about)) },
-                icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                label = { DrawerLabel(stringResource(R.string.about)) },
+                icon = { Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(20.dp)) },
                 selected = false,
                 onClick = onOpenAbout,
             )
-            NavigationDrawerItem(
-                label = { Text(stringResource(R.string.log_out)) },
-                icon = { Icon(Icons.Outlined.Logout, contentDescription = null) },
-                selected = false,
-                onClick = onLogout,
-            )
         }
     }
+}
+
+@Composable
+private fun DrawerLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 @Composable
@@ -400,7 +430,7 @@ private fun DrawerBadge(count: Int) {
     if (count > 0) {
         Text(
             text = count.toString(),
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -419,15 +449,16 @@ private fun DrawerFeedItem(
                 AsyncImage(
                     model = feed.faviconLink,
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(20.dp),
                 )
             } else {
-                Icon(Icons.Outlined.Folder, contentDescription = null)
+                Icon(Icons.Outlined.Folder, contentDescription = null, modifier = Modifier.size(20.dp))
             }
         },
         label = {
             Text(
                 text = feed.title,
+                style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = if (indented) Modifier.padding(start = 8.dp) else Modifier,
@@ -443,6 +474,9 @@ private fun DrawerFeedItem(
 private fun ArticleList(
     items: List<ItemEntity>,
     feeds: List<FeedEntity>,
+    swipeRight: SwipeAction,
+    swipeLeft: SwipeAction,
+    feedListStyle: FeedListStyle,
     onToggleRead: (ItemEntity) -> Unit,
     onToggleStarred: (ItemEntity) -> Unit,
     onItemClick: (ItemEntity) -> Unit,
@@ -459,6 +493,9 @@ private fun ArticleList(
             ArticleRow(
                 item = item,
                 feed = feedById[item.feedId],
+                swipeRight = swipeRight,
+                swipeLeft = swipeLeft,
+                showThumbnail = feedListStyle == FeedListStyle.THUMBNAILS,
                 onClick = { onItemClick(item) },
                 onToggleRead = onToggleRead,
                 onToggleStarred = onToggleStarred,
@@ -472,27 +509,38 @@ private fun ArticleList(
 private fun ArticleRow(
     item: ItemEntity,
     feed: FeedEntity?,
+    swipeRight: SwipeAction,
+    swipeLeft: SwipeAction,
+    showThumbnail: Boolean,
     onClick: () -> Unit,
     onToggleRead: (ItemEntity) -> Unit,
     onToggleStarred: (ItemEntity) -> Unit,
 ) {
     val context = LocalContext.current
     var offsetX by remember { mutableStateOf(0f) }
-    val thumbnail = item.mediaThumbnail ?: firstImageUrl(item.body)?.let { unpackImageUrl(it) }
+    val thumbnail = if (showThumbnail) {
+        item.mediaThumbnail ?: firstImageUrl(item.body)?.let { unpackImageUrl(it) }
+    } else {
+        null
+    }
+    fun runAction(action: SwipeAction) {
+        when (action) {
+            SwipeAction.STAR -> if (!item.starred) onToggleStarred(item)
+            SwipeAction.READ -> if (item.unread) onToggleRead(item)
+            SwipeAction.NOTHING -> Unit
+        }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(96.dp)
             .offset { IntOffset(offsetX.toInt(), 0) }
             .clickable(onClick = onClick)
-            .pointerInput(item.id) {
+            .pointerInput(item.id, swipeRight, swipeLeft) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
-                        if (offsetX < -120f) {
-                            if (item.unread) onToggleRead(item)
-                        } else if (offsetX > 120f) {
-                            if (!item.starred) onToggleStarred(item)
-                        }
+                        if (offsetX < -120f) runAction(swipeLeft)
+                        else if (offsetX > 120f) runAction(swipeRight)
                         offsetX = 0f
                     },
                     onHorizontalDrag = { change, amount ->
@@ -507,7 +555,7 @@ private fun ArticleRow(
         Column(Modifier.weight(1f)) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (item.unread) FontWeight.SemiBold else FontWeight.Normal,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -553,7 +601,7 @@ private fun ArticleRow(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(width = 112.dp, height = 80.dp)
+                    .size(80.dp)
                     .clip(RoundedCornerShape(8.dp)),
             )
         }

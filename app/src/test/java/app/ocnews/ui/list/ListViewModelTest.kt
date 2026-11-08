@@ -7,6 +7,7 @@ import app.ocnews.testutil.FakeFolderDao
 import app.ocnews.testutil.FakeItemDao
 import app.ocnews.testutil.FakeNewsApi
 import app.ocnews.testutil.FakeSessionStore
+import app.ocnews.testutil.FakeSettingsStore
 import app.ocnews.testutil.feed
 import app.ocnews.testutil.item
 import kotlinx.coroutines.Dispatchers
@@ -79,13 +80,13 @@ class ListViewModelTest {
     }
 
     @Test
-    fun `filterItems query matches title and author case-insensitively`() {
+    fun `filterItems query matches title case-insensitively`() {
         val items = listOf(
-            item(1, unread = true).copy(title = "Butterflies", author = "Alice"),
-            item(2, unread = true).copy(title = "Other", author = "Bob"),
-            item(3, unread = true).copy(title = "Unrelated", author = "Alice Smith"),
+            item(1, unread = true).copy(title = "Butterflies"),
+            item(2, unread = true).copy(title = "Other"),
+            item(3, unread = true).copy(title = "Butterfly effect"),
         )
-        val result = filterItems(items, emptyList(), Scope.All, onlyUnread = false, query = "alice")
+        val result = filterItems(items, emptyList(), Scope.All, onlyUnread = false, query = "butterfl")
         assertEquals(listOf(1L, 3L), result.map { it.id })
     }
 
@@ -100,7 +101,7 @@ class ListViewModelTest {
             itemDao = itemDao,
             apiFactory = { FakeNewsApi() },
         )
-        return ListViewModel(repo) to itemDao
+        return ListViewModel(repo, FakeSettingsStore()) to itemDao
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

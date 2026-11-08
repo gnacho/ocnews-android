@@ -18,6 +18,12 @@
     <string name="log_out">Cerrar sesión</string>
     <string name="no_articles">No hay artículos</string>
     <string name="add_feed">Añadir feed</string>
+    <string name="refresh">Actualizar</string>
+    <string name="download_articles">Descargar artículos sin conexión</string>
+    <string name="download_images">Descargar imágenes</string>
+    <string name="mark_all_read">Marcar todo como leído</string>
+    <string name="logout_confirm_title">¿Cerrar sesión?</string>
+    <string name="logout_confirm_message">Tendrás que iniciar sesión de nuevo.</string>
     <string name="search">Buscar</string>
     <string name="search_hint">Buscar artículos</string>
     <string name="close">Cerrar</string>
@@ -62,6 +68,38 @@
         <item quantity="one">%1$d día</item>
         <item quantity="other">%1$d días</item>
     </plurals>
+
+    <!-- Settings -->
+    <string name="section_general">General</string>
+    <string name="sync_on_start">Sincronizar al inicio</string>
+    <string name="only_unread_default">Mostrar sólo artículos no leídos</string>
+    <string name="swipe_right_action">Acción al deslizar a la derecha</string>
+    <string name="swipe_left_action">Acción al deslizar a la izquierda</string>
+    <string name="swipe_star">Destacado</string>
+    <string name="swipe_read">Leído</string>
+    <string name="swipe_nothing">Nada</string>
+    <string name="sort_order">Ordenar</string>
+    <string name="sort_newest">Nuevo → Antiguo</string>
+    <string name="sort_oldest">Antiguo → Nuevo</string>
+    <string name="search_in">Buscar en</string>
+    <string name="search_title">Título</string>
+    <string name="search_content">Contenido</string>
+    <string name="search_both">Ambos</string>
+    <string name="section_display">Mostrar</string>
+    <string name="feed_list_style">Lista de fuentes</string>
+    <string name="feed_list_thumbnails">Miniaturas</string>
+    <string name="feed_list_titles">Sólo títulos</string>
+    <string name="text_size">Tamaño del texto</string>
+    <string name="text_size_small">Pequeño</string>
+    <string name="text_size_default">Por defecto</string>
+    <string name="text_size_large">Grande</string>
+    <string name="section_data">Datos &amp; sincronización</string>
+    <string name="clear_cache">Vaciar caché</string>
+    <string name="section_about">Acerca de</string>
+    <string name="license">Licencia</string>
+    <string name="report_issue">Informar de un error</string>
+    <string name="contribute">¡Contribuye!</string>
+    <string name="version_label">Versión</string>
 
     <!-- Errors -->
     <string name="err_invalid_credentials">Usuario o token no válido</string>

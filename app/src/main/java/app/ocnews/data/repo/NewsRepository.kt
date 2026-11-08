@@ -156,6 +156,7 @@ class NewsRepository(
     }
 
     suspend fun markAllRead() {
+        itemDao.markAllRead()
         currentApi()?.markAllRead()
     }
 
