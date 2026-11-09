@@ -4,6 +4,13 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.36] - 2026-11-09
+
+### Fixed
+
+- Tapping outside an open menu no longer activates anything underneath it: taps outside only close the menu. This affected the top bar menu, the reader menu and the choice rows in Settings.
+- Menus now collapse with a fade and scale animation instead of disappearing.
+
 ## [0.1.34] - 2026-11-09
 
 ### Changed

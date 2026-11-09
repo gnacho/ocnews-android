@@ -45,7 +45,6 @@ import androidx.compose.material.icons.outlined.WatchLater
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -67,6 +66,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -80,7 +80,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -93,6 +96,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.ocnews.R
+import app.ocnews.ui.common.AppMenu
 import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemEntity
@@ -253,13 +257,19 @@ fun MainScreen(
                                 IconButton(onClick = { searchActive = true }) {
                                     Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search))
                                 }
-                                Box {
+                                var profileMenuY by remember { mutableIntStateOf(0) }
+                                Box(
+                                    Modifier.onGloballyPositioned { coords ->
+                                        profileMenuY = (coords.positionInRoot().y + coords.size.height).toInt()
+                                    },
+                                ) {
                                     IconButton(onClick = { profileMenuOpen = true }) {
                                         Icon(Icons.Filled.MoreVert, contentDescription = null)
                                     }
-                                    DropdownMenu(
+                                    AppMenu(
                                         expanded = profileMenuOpen,
                                         onDismissRequest = { profileMenuOpen = false },
+                                        topOffset = with(LocalDensity.current) { profileMenuY.toDp() },
                                     ) {
                                         DropdownMenuItem(
                                             text = { Text(stringResource(R.string.add_feed)) },
@@ -724,7 +734,12 @@ private fun ReaderTopBar(
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
-        Box {
+        var menuY by remember { mutableIntStateOf(0) }
+        Box(
+            Modifier.onGloballyPositioned { coords ->
+                menuY = (coords.positionInRoot().y + coords.size.height).toInt()
+            },
+        ) {
             IconButton(onClick = { menuOpen = true }) {
                 Icon(
                     Icons.Filled.MoreVert,
@@ -732,7 +747,12 @@ private fun ReaderTopBar(
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            AppMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                topOffset = with(LocalDensity.current) { menuY.toDp() },
+                endPadding = 4.dp,
+            ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.fetch_full)) },
                     onClick = {
