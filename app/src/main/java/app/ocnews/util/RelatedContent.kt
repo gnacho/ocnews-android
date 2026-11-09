@@ -68,9 +68,78 @@ fun linkTextRatio(html: String): Float {
     return linkChars.toFloat() / total
 }
 
-// A short block that is mostly a link is boilerplate, whatever the site calls it.
-fun isLinkHeavyBlock(html: String, maxChars: Int = 300, threshold: Float = 0.5f): Boolean =
-    visibleLength(html) in 1..maxChars && linkTextRatio(html) >= threshold
+// Removes runs of consecutive links with no text between them, which is how
+// feeds embed "related article" cards: an optional thumbnail, a label ("En
+// Xataka") and the title, all as anchors glued to the next paragraph. A single
+// anchor with only an image (the usual lightbox around an inline image) is kept.
+fun stripCardLinkRuns(html: String): String {
+    val anchor = Regex("(?is)<a\\b[^>]*>(.*?)</a>")
+    val matches = anchor.findAll(html).toList()
+    if (matches.isEmpty()) return html
+
+    val groups = mutableListOf<MutableList<MatchResult>>()
+    for (match in matches) {
+        val last = groups.lastOrNull()
+        if (last != null) {
+            val gap = html.substring(last.last().range.last + 1, match.range.first)
+            if (gap.isBlank()) {
+                last.add(match)
+                continue
+            }
+        }
+        groups.add(mutableListOf(match))
+    }
+
+    fun anchorText(match: MatchResult): Int =
+        match.groupValues[1].replace(Regex("<[^>]*>"), "").replace("&nbsp;", " ")
+            .count { !it.isWhitespace() }
+
+    // Two or more glued anchors is a card. A single anchor inside a paragraph is
+    // an ordinary inline link and must stay.
+    val runs = groups.filter { group ->
+        group.size >= 2 && group.sumOf { anchorText(it) } >= 15
+    }
+    if (runs.isEmpty()) return html
+
+    val builder = StringBuilder()
+    var cursor = 0
+    for (run in runs) {
+        val start = run.first().range.first
+        val end = run.last().range.last + 1
+        if (start < cursor) continue
+        builder.append(html, cursor, start)
+        cursor = end
+    }
+    builder.append(html, cursor, html.length)
+    return builder.toString()
+}
+
+// A card is a short block that is basically a link: the text outside the link is
+// just a label ("En Xataka", "Imágenes", "Vía"...), so it contributes nothing to
+// the article wherever it appears. Prose keeps at least a sentence outside links.
+private class LinkCounts(val total: Int, val link: Int) {
+    val free: Int get() = total - link
+}
+
+private fun linkCounts(html: String): LinkCounts {
+    val total = visibleLength(html)
+    val link = Regex("<a\\b[^>]*>(.*?)</a>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        .findAll(html)
+        .sumOf { it.groupValues[1].replace(Regex("<[^>]*>"), "").replace("&nbsp;", " ").count { c -> !c.isWhitespace() } }
+    return LinkCounts(total, link)
+}
+
+fun isCardBlock(
+    html: String,
+    maxChars: Int = 300,
+    minLinkChars: Int = 8,
+    maxFreeChars: Int = 12,
+): Boolean {
+    val counts = linkCounts(html)
+    return counts.total in 15..maxChars &&
+        counts.link >= minLinkChars &&
+        counts.free <= maxFreeChars
+}
 
 // Single-line cross references such as "En Xataka | Another article title",
 // which the same publisher appends to the end of its articles.
