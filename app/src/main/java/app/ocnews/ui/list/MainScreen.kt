@@ -117,6 +117,7 @@ import app.ocnews.data.settings.SwipeAction
 import app.ocnews.ui.addfeed.AddFeedDialog
 import app.ocnews.ui.addfeed.AddFeedViewModel
 import app.ocnews.util.firstImageUrl
+import app.ocnews.util.isRelatedHeading
 import app.ocnews.util.format
 import app.ocnews.util.relativeTime
 import app.ocnews.util.unpackImageUrl
@@ -151,6 +152,7 @@ fun MainScreen(
     onConfirmImageDownload: () -> Unit,
     onCancelImageDownload: () -> Unit,
     navigateWithVolume: Boolean,
+    hideRelated: Boolean,
     onDownloadArticles: () -> Unit,
     onDownloadImages: () -> Unit,
     onFinishedShown: () -> Unit,
@@ -421,6 +423,7 @@ fun MainScreen(
                 fullContent = fullContent,
                 itemDetails = itemDetails,
                 navigateWithVolume = navigateWithVolume,
+                hideRelated = hideRelated,
                 onLoadDetail = onLoadDetail,
                 onFetchFull = onFetchFull,
                 onBack = { selectedIndex = null },
@@ -725,6 +728,7 @@ private fun Reader(
     fullContent: Map<Long, String>,
     itemDetails: Map<Long, ItemEntity>,
     navigateWithVolume: Boolean,
+    hideRelated: Boolean,
     onLoadDetail: (Long) -> Unit,
     onFetchFull: (Long) -> Unit,
     onBack: () -> Unit,
@@ -810,6 +814,7 @@ private fun Reader(
                     faviconUrl = favicon,
                     isDark = isDark,
                     body = fullContent[pageItem.id] ?: detail?.fullBody ?: detail?.body,
+                    hideRelated = hideRelated,
                 )
             }
         }
@@ -927,15 +932,21 @@ private fun ReaderPage(
     faviconUrl: String?,
     isDark: Boolean,
     body: String?,
+    hideRelated: Boolean,
 ) {
     val context = LocalContext.current
     val linkColor = MaterialTheme.colorScheme.primary
     // The body becomes a list of text and image blocks, in document order, so it
     // is laid out lazily and the images stay where the article puts them.
     // Parsing HTML takes hundreds of milliseconds, so keep it off the main thread.
-    val blocks by produceState<List<ReaderBlock>?>(initialValue = null, body, linkColor) {
+    val blocks by produceState<List<ReaderBlock>?>(
+        initialValue = null,
+        body,
+        linkColor,
+        hideRelated,
+    ) {
         value = body?.let { html ->
-            withContext(Dispatchers.Default) { htmlToBlocks(html, linkColor) }
+            withContext(Dispatchers.Default) { htmlToBlocks(html, linkColor, hideRelated) }
         }
     }
     LazyColumn(
@@ -1031,7 +1042,7 @@ private sealed interface ReaderBlock {
 
 // Turns the article HTML into text and image blocks in document order, so the
 // images are rendered where the article places them.
-private fun htmlToBlocks(html: String, linkColor: Color): List<ReaderBlock> {
+private fun htmlToBlocks(html: String, linkColor: Color, hideRelated: Boolean): List<ReaderBlock> {
     val imgTag = Regex("""<img[^>]*>""", RegexOption.IGNORE_CASE)
     val srcAttr = Regex("""src\s*=\s*[\"']([^\"']+)[\"']""", RegexOption.IGNORE_CASE)
     val result = mutableListOf<ReaderBlock>()
@@ -1056,7 +1067,12 @@ private fun htmlToBlocks(html: String, linkColor: Color): List<ReaderBlock> {
         cursor = match.range.last + 1
     }
     if (cursor < html.length) addText(html.substring(cursor))
-    return result
+    if (!hideRelated) return result
+    // Sites append a "you may also like" block at the end; drop it and what follows.
+    val cut = result.indexOfFirst { block ->
+        block is ReaderBlock.Text && isRelatedHeading(block.content.text)
+    }
+    return if (cut >= 0) result.subList(0, cut).toList() else result
 }
 
 // Splits an article body on block-level closing tags so each paragraph can be

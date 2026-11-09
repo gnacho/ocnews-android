@@ -202,6 +202,11 @@ fun SettingsScreen(
             ChoiceRow(R.string.text_size, settings.textSize, textSizeOptions, viewModel::setTextSize)
             SwitchRow(R.string.oled_background, settings.oledBackground, viewModel::setOledBackground)
             SwitchRow(
+                R.string.hide_related_sections,
+                settings.hideRelatedSections,
+                viewModel::setHideRelatedSections,
+            )
+            SwitchRow(
                 R.string.volume_buttons,
                 settings.navigateWithVolumeButtons,
                 viewModel::setNavigateWithVolumeButtons,

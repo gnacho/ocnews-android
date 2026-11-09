@@ -149,6 +149,9 @@ class FakeSettingsStore : SettingsStore {
     override suspend fun setMaxCacheSizeMb(mb: Int) {
         state.value = state.value.copy(maxCacheSizeMb = mb)
     }
+    override suspend fun setHideRelatedSections(value: Boolean) {
+        state.value = state.value.copy(hideRelatedSections = value)
+    }
 }
 
 class FakeItemDao : ItemDao {

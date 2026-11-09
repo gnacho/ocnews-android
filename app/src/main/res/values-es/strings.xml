@@ -27,6 +27,7 @@
     <string name="ask_images_message">No estás conectado a WiFi. ¿Descargarlas igualmente?</string>
     <string name="download">Descargar</string>
     <string name="clear_cache_done">Caché vaciada</string>
+    <string name="hide_related_sections">Ocultar bloques de "también te puede interesar"</string>
     <string name="settings">Ajustes</string>
     <string name="about">Acerca de</string>
     <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>

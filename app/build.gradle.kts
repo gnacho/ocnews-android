@@ -31,8 +31,8 @@ android {
         applicationId = "app.ocnews"
         minSdk = 29
         targetSdk = 37
-        versionCode = 23
-        versionName = "0.1.46"
+        versionCode = 24
+        versionName = "0.1.48"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

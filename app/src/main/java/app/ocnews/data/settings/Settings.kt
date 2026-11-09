@@ -44,6 +44,8 @@ data class AppSettings(
     // Offline image download policy and Coil disk cache size.
     val imageCacheMode: ImageCacheMode = ImageCacheMode.WIFI_AND_MOBILE,
     val maxCacheSizeMb: Int = 500,
+    // Drops the "you may also like" blocks some sites append to the article.
+    val hideRelatedSections: Boolean = true,
 )
 
 interface SettingsStore {
@@ -62,6 +64,7 @@ interface SettingsStore {
     suspend fun setNavigateWithVolumeButtons(value: Boolean)
     suspend fun setImageCacheMode(mode: ImageCacheMode)
     suspend fun setMaxCacheSizeMb(mb: Int)
+    suspend fun setHideRelatedSections(value: Boolean)
 }
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -84,6 +87,7 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
     private val kVolumeNav = booleanPreferencesKey("navigate_with_volume_buttons")
     private val kImageCacheMode = stringPreferencesKey("image_cache_mode")
     private val kMaxCacheSize = intPreferencesKey("max_cache_size_mb")
+    private val kHideRelated = booleanPreferencesKey("hide_related_sections")
 
     override val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
@@ -101,6 +105,7 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
             navigateWithVolumeButtons = p[kVolumeNav] ?: false,
             imageCacheMode = decode(p[kImageCacheMode], ImageCacheMode.WIFI_AND_MOBILE),
             maxCacheSizeMb = p[kMaxCacheSize] ?: 500,
+            hideRelatedSections = p[kHideRelated] ?: true,
         )
     }
 
@@ -158,5 +163,9 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
 
     override suspend fun setMaxCacheSizeMb(mb: Int) {
         context.dataStore.edit { it[kMaxCacheSize] = mb }
+    }
+
+    override suspend fun setHideRelatedSections(value: Boolean) {
+        context.dataStore.edit { it[kHideRelated] = value }
     }
 }
