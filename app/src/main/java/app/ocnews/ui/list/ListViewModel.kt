@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -316,12 +317,19 @@ class ListViewModel(
     fun sync() {
         viewModelScope.launch {
             _syncing.value = true
+            val startedAt = System.currentTimeMillis()
             try {
                 repository.sync()
             } catch (e: Exception) {
                 // Network/API failures must not crash the app; the list keeps cached data.
                 println("OCNEWS sync failed: ${e.message}")
             } finally {
+                // Keep the refresh animation on screen for a moment even when the
+                // server has nothing new, so the pull does not look ignored.
+                val elapsed = System.currentTimeMillis() - startedAt
+                if (elapsed < MIN_REFRESH_FEEDBACK_MS) {
+                    delay(MIN_REFRESH_FEEDBACK_MS - elapsed)
+                }
                 _syncing.value = false
             }
         }
@@ -342,6 +350,9 @@ class ListViewModel(
     }
 
     companion object {
+        // Minimum time the pull-to-refresh indicator stays visible.
+        private const val MIN_REFRESH_FEEDBACK_MS = 900L
+
         fun factory(
             repository: NewsRepository,
             settingsStore: SettingsStore,

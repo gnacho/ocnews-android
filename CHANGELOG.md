@@ -4,6 +4,13 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.60] - 2026-11-09
+
+### Added
+
+- Pull down on the article list to refresh the feeds, with the Material spinner. The indicator stays for at least 0.9 s so a pull always gives feedback, even when the server has nothing new.
+- Pull to refresh also works when the list is empty.
+
 ## [0.1.58] - 2026-11-09
 
 ### Fixed
