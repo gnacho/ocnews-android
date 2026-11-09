@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.56] - 2026-11-09
+
+### Changed
+
+- New app icon background: the OpenCloud radial gradient (lilac centre to dark teal edge) replaces the flat lilac. It applies to the adaptive icon and to the legacy PNGs, and the gradient radius is tuned so the dark rim stays inside the launcher mask.
+
 ## [0.1.54] - 2026-11-09
 
 ### Changed
