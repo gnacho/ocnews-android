@@ -5,7 +5,9 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,7 +60,9 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -166,6 +170,8 @@ fun MainScreen(
     onFinishedShown: () -> Unit,
     onAutoRead: (Long) -> Unit,
     onReaderClosed: () -> Unit,
+    fullTextFeedIds: Set<Long>,
+    onSaveFeedSettings: (Long, Long?, Boolean) -> Unit,
     onFetchFull: (Long) -> Unit,
     onLoadDetail: (Long) -> Unit,
     addFeedViewModel: AddFeedViewModel,
@@ -182,6 +188,7 @@ fun MainScreen(
     // Snapshot of the list taken when the reader opens: toggling read/starred
     // changes the filtered list behind, and the reader must not jump or close.
     var readerItems by remember { mutableStateOf<List<ItemSummary>?>(null) }
+    var feedSettingsFor by remember { mutableStateOf<FeedEntity?>(null) }
     var showAddFeed by remember { mutableStateOf(false) }
     var searchActive by remember { mutableStateOf(false) }
     var profileMenuOpen by remember { mutableStateOf(false) }
@@ -208,6 +215,19 @@ fun MainScreen(
         AddFeedDialog(
             viewModel = addFeedViewModel,
             onDismiss = { showAddFeed = false },
+        )
+    }
+
+    feedSettingsFor?.let { feed ->
+        FeedSettingsDialog(
+            feed = feed,
+            folders = folders,
+            fullText = fullTextFeedIds.contains(feed.id),
+            onSave = { folderId, fullText ->
+                onSaveFeedSettings(feed.id, folderId, fullText)
+                feedSettingsFor = null
+            },
+            onDismiss = { feedSettingsFor = null },
         )
     }
 
@@ -258,6 +278,10 @@ fun MainScreen(
                     scope = scope,
                     unreadCount = unreadCount,
                     starredCount = starredCount,
+                    onFeedSettings = { feed ->
+                        feedSettingsFor = feed
+                        coroutineScope.launch { drawerState.close() }
+                    },
                     onSelectScope = { s ->
                         onSelectScope(s)
                         coroutineScope.launch { drawerState.close() }
@@ -445,6 +469,10 @@ fun MainScreen(
                 itemDetails = itemDetails,
                 navigateWithVolume = navigateWithVolume,
                 hideRelated = hideRelated,
+                fullTextFeedIds = fullTextFeedIds,
+                onEditFeed = { feedId ->
+                    feeds.firstOrNull { it.id == feedId }?.let { feedSettingsFor = it }
+                },
                 onAutoRead = onAutoRead,
                 onLoadDetail = onLoadDetail,
                 onFetchFull = onFetchFull,
@@ -460,6 +488,82 @@ fun MainScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+private fun FeedSettingsDialog(
+    feed: FeedEntity,
+    folders: List<FolderEntity>,
+    fullText: Boolean,
+    onSave: (Long?, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var folderId by remember { mutableStateOf(feed.folderId) }
+    var fullTextEnabled by remember { mutableStateOf(fullText) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(feed.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    text = stringResource(R.string.feed_folder),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                FolderOption(
+                    label = stringResource(R.string.no_folder),
+                    selected = folderId == null,
+                    onClick = { folderId = null },
+                )
+                folders.forEach { folder ->
+                    FolderOption(
+                        label = folder.name,
+                        selected = folderId == folder.id,
+                        onClick = { folderId = folder.id },
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.fetch_full_per_feed),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = stringResource(R.string.fetch_full_per_feed_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = fullTextEnabled, onCheckedChange = { fullTextEnabled = it })
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(folderId, fullTextEnabled) }) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun FolderOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Spacer(Modifier.width(8.dp))
+        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
 @Composable
 private fun DrawerContent(
     folders: List<FolderEntity>,
@@ -468,6 +572,7 @@ private fun DrawerContent(
     unreadCount: Int,
     starredCount: Int,
     onSelectScope: (Scope) -> Unit,
+    onFeedSettings: (FeedEntity) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(vertical = 8.dp)) {
@@ -500,7 +605,7 @@ private fun DrawerContent(
             HorizontalDivider(Modifier.padding(vertical = 6.dp))
 
             feeds.filter { it.folderId == null }.forEach { feed ->
-                DrawerFeedRow(feed, scope, onSelectScope)
+                DrawerFeedRow(feed, scope, onSelectScope, onFeedSettings = onFeedSettings)
             }
 
             folders.forEach { folder ->
@@ -513,7 +618,13 @@ private fun DrawerContent(
                     onClick = { onSelectScope(Scope.Folder(folder.id)) },
                 )
                 folderFeeds.forEach { feed ->
-                    DrawerFeedRow(feed, scope, onSelectScope, indented = true)
+                    DrawerFeedRow(
+                        feed,
+                        scope,
+                        onSelectScope,
+                        onFeedSettings = onFeedSettings,
+                        indented = true,
+                    )
                 }
             }
         }
@@ -572,6 +683,7 @@ private fun DrawerFeedRow(
     feed: FeedEntity,
     scope: Scope,
     onSelectScope: (Scope) -> Unit,
+    onFeedSettings: (FeedEntity) -> Unit,
     indented: Boolean = false,
 ) {
     Row(
@@ -579,7 +691,10 @@ private fun DrawerFeedRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .background(if (scope == Scope.Feed(feed.id)) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-            .clickable { onSelectScope(Scope.Feed(feed.id)) }
+            .combinedClickable(
+                onClick = { onSelectScope(Scope.Feed(feed.id)) },
+                onLongClick = { onFeedSettings(feed) },
+            )
             .padding(start = if (indented) 24.dp else 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -826,6 +941,8 @@ private fun Reader(
     itemDetails: Map<Long, ItemEntity>,
     navigateWithVolume: Boolean,
     hideRelated: Boolean,
+    fullTextFeedIds: Set<Long>,
+    onEditFeed: (Long) -> Unit,
     onAutoRead: (Long) -> Unit,
     onLoadDetail: (Long) -> Unit,
     onFetchFull: (Long) -> Unit,
@@ -896,6 +1013,7 @@ private fun Reader(
                 item = current,
                 unread = currentDetail?.unread ?: current.unread,
                 feedTitle = feedTitle,
+                onEditFeed = { onEditFeed(current.feedId) },
                 onBack = onBack,
                 onToggleRead = { onToggleRead(current.id, currentDetail?.unread ?: current.unread) },
                 onFetchFull = { onFetchFull(current.id) },
@@ -908,7 +1026,13 @@ private fun Reader(
                 val pageItem = items[page]
                 val detail = itemDetails[pageItem.id]
                 val favicon = feeds.firstOrNull { it.id == pageItem.feedId }?.faviconLink
-                LaunchedEffect(pageItem.id) { onLoadDetail(pageItem.id) }
+                LaunchedEffect(pageItem.id) {
+                    onLoadDetail(pageItem.id)
+                    // Feeds marked in their settings get the full text on open.
+                    if (pageItem.feedId in fullTextFeedIds && itemDetails[pageItem.id]?.fullBody == null) {
+                        onFetchFull(pageItem.id)
+                    }
+                }
                 ReaderPage(
                     item = pageItem,
                     faviconUrl = favicon,
@@ -934,6 +1058,7 @@ private fun ReaderTopBar(
     item: ItemSummary,
     unread: Boolean,
     feedTitle: String?,
+    onEditFeed: () -> Unit,
     onBack: () -> Unit,
     onToggleRead: () -> Unit,
     onFetchFull: () -> Unit,
@@ -999,6 +1124,13 @@ private fun ReaderTopBar(
                     onClick = {
                         menuOpen = false
                         onFetchFull()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.feed_settings)) },
+                    onClick = {
+                        menuOpen = false
+                        onEditFeed()
                     },
                 )
                 DropdownMenuItem(

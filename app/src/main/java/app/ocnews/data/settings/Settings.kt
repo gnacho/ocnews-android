@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -46,6 +47,9 @@ data class AppSettings(
     val maxCacheSizeMb: Int = 500,
     // Drops the "you may also like" blocks some sites append to the article.
     val hideRelatedSections: Boolean = true,
+    // Feeds whose articles are fetched with the server-side full text on open.
+    // The API has no per-feed flag, so this lives locally.
+    val fullTextFeedIds: Set<Long> = emptySet(),
 )
 
 interface SettingsStore {
@@ -65,6 +69,7 @@ interface SettingsStore {
     suspend fun setImageCacheMode(mode: ImageCacheMode)
     suspend fun setMaxCacheSizeMb(mb: Int)
     suspend fun setHideRelatedSections(value: Boolean)
+    suspend fun setFullTextFeed(feedId: Long, enabled: Boolean)
 }
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -88,6 +93,7 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
     private val kImageCacheMode = stringPreferencesKey("image_cache_mode")
     private val kMaxCacheSize = intPreferencesKey("max_cache_size_mb")
     private val kHideRelated = booleanPreferencesKey("hide_related_sections")
+    private val kFullTextFeeds = stringSetPreferencesKey("full_text_feeds")
 
     override val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
@@ -106,6 +112,7 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
             imageCacheMode = decode(p[kImageCacheMode], ImageCacheMode.WIFI_AND_MOBILE),
             maxCacheSizeMb = p[kMaxCacheSize] ?: 500,
             hideRelatedSections = p[kHideRelated] ?: true,
+            fullTextFeedIds = p[kFullTextFeeds].orEmpty().mapNotNull { it.toLongOrNull() }.toSet(),
         )
     }
 
@@ -167,5 +174,12 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
 
     override suspend fun setHideRelatedSections(value: Boolean) {
         context.dataStore.edit { it[kHideRelated] = value }
+    }
+
+    override suspend fun setFullTextFeed(feedId: Long, enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[kFullTextFeeds].orEmpty()
+            prefs[kFullTextFeeds] = if (enabled) current + feedId.toString() else current - feedId.toString()
+        }
     }
 }

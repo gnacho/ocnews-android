@@ -172,6 +172,7 @@ class MainActivity : ComponentActivity() {
                         val finished by listViewModel.finished.collectAsStateWithLifecycle()
                         val pendingImageDownload by
                             listViewModel.pendingImageDownload.collectAsStateWithLifecycle()
+                        val fullTextFeedIds by listViewModel.fullTextFeedIds.collectAsStateWithLifecycle()
 
                         MainScreen(
                             folders = folders,
@@ -201,6 +202,8 @@ class MainActivity : ComponentActivity() {
                             onFinishedShown = listViewModel::clearFinished,
                             onAutoRead = listViewModel::autoMarkRead,
                             onReaderClosed = listViewModel::resetReaderSession,
+                            fullTextFeedIds = fullTextFeedIds,
+                            onSaveFeedSettings = listViewModel::saveFeedSettings,
                             onFetchFull = listViewModel::fetchFullContent,
                             onLoadDetail = listViewModel::loadItemDetail,
                             addFeedViewModel = addFeedViewModel,

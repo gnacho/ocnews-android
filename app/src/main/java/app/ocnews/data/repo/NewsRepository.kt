@@ -184,6 +184,7 @@ class NewsRepository(
     suspend fun moveFeed(id: Long, folderId: Long?) {
         val api = currentApi() ?: return
         api.moveFeed(id, MoveFeedRequest(folderId ?: 0L))
+        // Keep the local row in sync so the drawer reflects the move immediately.
         feedDao.move(id, folderId)
     }
 
