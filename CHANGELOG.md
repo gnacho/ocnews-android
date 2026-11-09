@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.54] - 2026-11-09
+
+### Changed
+
+- The related-content filter also uses link density, the rule modern extractors rely on: a short block in the last part of the article that is mostly a link is dropped, whatever wording the site uses. It removes cross references ("En <site> | <title>"), image credits ("Imágenes | <author>"), sources ("Vía | <site>") and attribution lines, in any language. The heading list stays as a complement.
+
 ## [0.1.52] - 2026-11-09
 
 ### Changed

@@ -118,6 +118,7 @@ import app.ocnews.ui.addfeed.AddFeedDialog
 import app.ocnews.ui.addfeed.AddFeedViewModel
 import app.ocnews.util.firstImageUrl
 import app.ocnews.util.isRelatedHeading
+import app.ocnews.util.isLinkHeavyBlock
 import app.ocnews.util.isRelatedLink
 import app.ocnews.util.format
 import app.ocnews.util.relativeTime
@@ -1052,7 +1053,8 @@ private fun ReaderPage(
 private fun Char.isVisibleChar(): Boolean = !isWhitespace() && this != '\u00A0'
 
 private sealed interface ReaderBlock {
-    data class Text(val content: AnnotatedString) : ReaderBlock
+    // linkHeavy blocks are boilerplate: short and almost entirely a link.
+    data class Text(val content: AnnotatedString, val linkHeavy: Boolean = false) : ReaderBlock
     data class Image(val url: String) : ReaderBlock
 }
 
@@ -1071,7 +1073,12 @@ private fun htmlToBlocks(html: String, linkColor: Color, hideRelated: Boolean): 
             val start = text.indexOfFirst { it.isVisibleChar() }
             if (start < 0) continue
             val end = text.indexOfLast { it.isVisibleChar() }
-            result.add(ReaderBlock.Text(text.subSequence(start, end + 1)))
+            result.add(
+                ReaderBlock.Text(
+                    content = text.subSequence(start, end + 1),
+                    linkHeavy = isLinkHeavyBlock(part),
+                )
+            )
         }
     }
 
@@ -1090,9 +1097,14 @@ private fun htmlToBlocks(html: String, linkColor: Color, hideRelated: Boolean): 
         block is ReaderBlock.Text && isRelatedHeading(block.content.text)
     }
     val kept = if (cut >= 0) result.subList(0, cut) else result
-    // And single-line cross references such as "En Xataka | <other article>".
-    return kept.filterNot { block ->
-        block is ReaderBlock.Text && isRelatedLink(block.content.text)
+    val trailingStart = (kept.size * 0.6f).toInt()
+    return kept.filterIndexed { index, block ->
+        if (block !is ReaderBlock.Text) return@filterIndexed true
+        // Single-line cross references such as "En Xataka | <other article>".
+        if (isRelatedLink(block.content.text)) return@filterIndexed false
+        // And any trailing block that is basically a link (cards, tag lists),
+        // whatever the site calls it.
+        !(index >= trailingStart && block.linkHeavy)
     }
 }
 
