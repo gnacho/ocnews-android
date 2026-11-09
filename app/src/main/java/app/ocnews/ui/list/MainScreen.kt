@@ -722,6 +722,18 @@ private fun DrawerFeedRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        // Visible entry to the per-feed settings, so it does not depend on a long press.
+        IconButton(
+            onClick = { onFeedSettings(feed) },
+            modifier = Modifier.size(32.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Settings,
+                contentDescription = stringResource(R.string.feed_settings),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
+            )
+        }
     }
 }
 
