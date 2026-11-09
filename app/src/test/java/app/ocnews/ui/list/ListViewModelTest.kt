@@ -316,6 +316,68 @@ class ListViewModelTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun `autoMarkRead marks an unread article once`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val (vm, itemDao) = viewModel()
+
+            vm.autoMarkRead(1)
+            advanceUntilIdle()
+            vm.autoMarkRead(1)
+            advanceUntilIdle()
+
+            assertEquals(listOf(1L to false), itemDao.setUnreadCalls)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `autoMarkRead respects an article the user kept unread`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val (vm, itemDao) = viewModel()
+
+            // The reader opened it and it was marked read...
+            vm.autoMarkRead(1)
+            advanceUntilIdle()
+            // ...then the user marks it unread while still reading.
+            vm.toggleRead(1, unread = false)
+            advanceUntilIdle()
+            // Swiping back to it must not mark it read again.
+            vm.autoMarkRead(1)
+            advanceUntilIdle()
+
+            assertEquals(listOf(1L to false, 1L to true), itemDao.setUnreadCalls)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `resetReaderSession lets an article be marked read again`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val (vm, itemDao) = viewModel()
+
+            vm.autoMarkRead(1)
+            advanceUntilIdle()
+            vm.toggleRead(1, unread = false)
+            advanceUntilIdle()
+            vm.resetReaderSession()
+            vm.autoMarkRead(1)
+            advanceUntilIdle()
+
+            assertEquals(listOf(1L to false, 1L to true, 1L to false), itemDao.setUnreadCalls)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun `selectScope updates scope state`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {

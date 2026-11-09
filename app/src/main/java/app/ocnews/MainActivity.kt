@@ -199,6 +199,8 @@ class MainActivity : ComponentActivity() {
                             onDownloadArticles = listViewModel::downloadUnreadArticles,
                             onDownloadImages = listViewModel::downloadUnreadImages,
                             onFinishedShown = listViewModel::clearFinished,
+                            onAutoRead = listViewModel::autoMarkRead,
+                            onReaderClosed = listViewModel::resetReaderSession,
                             onFetchFull = listViewModel::fetchFullContent,
                             onLoadDetail = listViewModel::loadItemDetail,
                             addFeedViewModel = addFeedViewModel,

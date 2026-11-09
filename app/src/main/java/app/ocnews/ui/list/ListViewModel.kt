@@ -99,6 +99,9 @@ class ListViewModel(
     private val _download = MutableStateFlow<DownloadProgress?>(null)
     private val _finished = MutableStateFlow<DownloadFinished?>(null)
     private val _pendingImageDownload = MutableStateFlow(false)
+    // Articles the user explicitly kept unread during this reader session.
+    private val keepUnread = mutableSetOf<Long>()
+    private val autoHandled = mutableSetOf<Long>()
 
     private data class UiFilter(
         val onlyUnread: Boolean,
@@ -207,10 +210,28 @@ class ListViewModel(
         }
     }
 
-    fun toggleRead(id: Long, unread: Boolean) {
-        viewModelScope.launch { repository.setUnread(id, !unread) }
+    // Opening an article marks it read, unless the user just marked it unread.
+    fun autoMarkRead(id: Long) {
+        if (id in keepUnread || id in autoHandled) return
+        autoHandled += id
+        viewModelScope.launch { runCatching { repository.setUnread(id, false) } }
         _itemDetails.update { map ->
-            map[id]?.let { map + (id to it.copy(unread = !unread)) } ?: map
+            map[id]?.let { map + (id to it.copy(unread = false)) } ?: map
+        }
+    }
+
+    // Forgets the per-session decisions when the reader is closed.
+    fun resetReaderSession() {
+        keepUnread.clear()
+        autoHandled.clear()
+    }
+
+    fun toggleRead(id: Long, unread: Boolean) {
+        val target = !unread
+        if (target) keepUnread += id else keepUnread -= id
+        viewModelScope.launch { repository.setUnread(id, target) }
+        _itemDetails.update { map ->
+            map[id]?.let { map + (id to it.copy(unread = target)) } ?: map
         }
     }
 
