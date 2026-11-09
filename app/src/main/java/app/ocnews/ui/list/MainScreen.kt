@@ -61,6 +61,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.RadioButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -135,6 +139,7 @@ import app.ocnews.util.relativeTime
 import app.ocnews.util.unpackImageUrl
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -188,6 +193,7 @@ fun MainScreen(
     // Snapshot of the list taken when the reader opens: toggling read/starred
     // changes the filtered list behind, and the reader must not jump or close.
     var readerItems by remember { mutableStateOf<List<ItemSummary>?>(null) }
+    var readerOpen by remember { mutableStateOf(false) }
     var feedSettingsFor by remember { mutableStateOf<FeedEntity?>(null) }
     var showAddFeed by remember { mutableStateOf(false) }
     var searchActive by remember { mutableStateOf(false) }
@@ -249,6 +255,16 @@ fun MainScreen(
         )
     }
 
+    // Once the reader has slid away, forget its data and reset the session.
+    LaunchedEffect(readerOpen) {
+        if (!readerOpen && readerItems != null) {
+            delay(320)
+            readerItems = null
+            selectedIndex = null
+            onReaderClosed()
+        }
+    }
+
     if (confirmLogout) {
         AlertDialog(
             onDismissRequest = { confirmLogout = false },
@@ -291,9 +307,7 @@ fun MainScreen(
             }
         },
     ) {
-        val readerList = readerItems
-        val current = selectedIndex?.let { readerList?.getOrNull(it) }
-        if (current == null || readerList == null) {
+        Box(Modifier.fillMaxSize()) {
             Scaffold(
                 topBar = {
                     TopAppBar(
@@ -451,6 +465,7 @@ fun MainScreen(
                             onToggleStarred = onToggleStarred,
                             onItemClick = { item ->
                                 readerItems = items
+                                readerOpen = true
                                 selectedIndex = items.indexOfFirst { it.id == item.id }.takeIf { it >= 0 }
                             },
                         )
@@ -458,32 +473,38 @@ fun MainScreen(
                     }
                 }
             }
-        } else {
-            Reader(
-                items = readerList,
-                initialIndex = selectedIndex ?: 0,
-                feeds = feeds,
-                serverUrl = serverUrl,
-                isDark = isDark,
-                fullContent = fullContent,
-                itemDetails = itemDetails,
-                navigateWithVolume = navigateWithVolume,
-                hideRelated = hideRelated,
-                fullTextFeedIds = fullTextFeedIds,
-                onEditFeed = { feedId ->
-                    feeds.firstOrNull { it.id == feedId }?.let { feedSettingsFor = it }
-                },
-                onAutoRead = onAutoRead,
-                onLoadDetail = onLoadDetail,
-                onFetchFull = onFetchFull,
-                onBack = {
-                    readerItems = null
-                    selectedIndex = null
-                    onReaderClosed()
-                },
-                onToggleRead = onToggleRead,
-                onToggleStarred = onToggleStarred,
+            val readerList = readerItems
+            val readerIndex = selectedIndex ?: 0
+            val readerItem = readerList?.getOrNull(readerIndex)
+            // Slides in from the right and back out, so leaving an article is not a jump.
+            AnimatedVisibility(
+                visible = readerOpen && readerItem != null,
+                enter = slideInHorizontally(animationSpec = tween(300)) { it },
+                exit = slideOutHorizontally(animationSpec = tween(300)) { it },
+            ) {
+                if (readerItem == null || readerList == null) return@AnimatedVisibility
+                Reader(
+                    items = readerList,
+                    initialIndex = readerIndex,
+                    feeds = feeds,
+                    serverUrl = serverUrl,
+                    isDark = isDark,
+                    fullContent = fullContent,
+                    itemDetails = itemDetails,
+                    navigateWithVolume = navigateWithVolume,
+                    hideRelated = hideRelated,
+                    fullTextFeedIds = fullTextFeedIds,
+                    onEditFeed = { feedId ->
+                        feeds.firstOrNull { it.id == feedId }?.let { feedSettingsFor = it }
+                    },
+                    onAutoRead = onAutoRead,
+                    onLoadDetail = onLoadDetail,
+                    onFetchFull = onFetchFull,
+                    onBack = { readerOpen = false },
+                    onToggleRead = onToggleRead,
+                    onToggleStarred = onToggleStarred,
             )
+            }
         }
     }
 }
