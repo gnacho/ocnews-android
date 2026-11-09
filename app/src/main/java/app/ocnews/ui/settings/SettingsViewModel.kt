@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import app.ocnews.data.settings.AppSettings
 import app.ocnews.data.settings.FeedListStyle
 import app.ocnews.data.settings.SearchScope
+import app.ocnews.data.settings.ImageCacheMode
 import app.ocnews.data.settings.SettingsStore
 import app.ocnews.data.settings.SortOrder
 import app.ocnews.data.settings.SwipeAction
@@ -54,6 +55,14 @@ class SettingsViewModel(private val settingsStore: SettingsStore) : ViewModel() 
 
     fun setFeedListStyle(style: FeedListStyle) {
         viewModelScope.launch { settingsStore.setFeedListStyle(style) }
+    }
+
+    fun setImageCacheMode(mode: ImageCacheMode) {
+        viewModelScope.launch { settingsStore.setImageCacheMode(mode) }
+    }
+
+    fun setMaxCacheSizeMb(mb: Int) {
+        viewModelScope.launch { settingsStore.setMaxCacheSizeMb(mb) }
     }
 
     fun setOledBackground(value: Boolean) {

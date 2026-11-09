@@ -147,6 +147,9 @@ fun MainScreen(
     itemDetails: Map<Long, ItemEntity>,
     download: DownloadProgress?,
     finished: DownloadFinished?,
+    pendingImageDownload: Boolean,
+    onConfirmImageDownload: () -> Unit,
+    onCancelImageDownload: () -> Unit,
     navigateWithVolume: Boolean,
     onDownloadArticles: () -> Unit,
     onDownloadImages: () -> Unit,
@@ -174,6 +177,8 @@ fun MainScreen(
     LaunchedEffect(finished) {
         val result = finished ?: return@LaunchedEffect
         val text = when {
+            result.blocked == DownloadBlocked.DISABLED -> context.getString(R.string.download_disabled)
+            result.blocked == DownloadBlocked.WIFI_ONLY -> context.getString(R.string.download_wifi_blocked)
             result.count == 0 -> context.getString(R.string.nothing_to_download)
             result.kind == DownloadKind.ARTICLES ->
                 context.resources.getQuantityString(R.plurals.downloaded_articles, result.count, result.count)
@@ -188,6 +193,24 @@ fun MainScreen(
         AddFeedDialog(
             viewModel = addFeedViewModel,
             onDismiss = { showAddFeed = false },
+        )
+    }
+
+    if (pendingImageDownload) {
+        AlertDialog(
+            onDismissRequest = onCancelImageDownload,
+            title = { Text(stringResource(R.string.ask_images_title)) },
+            text = { Text(stringResource(R.string.ask_images_message)) },
+            confirmButton = {
+                TextButton(onClick = onConfirmImageDownload) {
+                    Text(stringResource(R.string.download))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onCancelImageDownload) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
         )
     }
 

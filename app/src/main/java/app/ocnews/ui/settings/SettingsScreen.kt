@@ -1,6 +1,7 @@
 package app.ocnews.ui.settings
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -48,6 +49,7 @@ import app.ocnews.R
 import app.ocnews.ui.common.AppMenu
 import app.ocnews.data.settings.FeedListStyle
 import app.ocnews.data.settings.SearchScope
+import app.ocnews.data.settings.ImageCacheMode
 import app.ocnews.data.settings.SortOrder
 import app.ocnews.data.settings.SwipeAction
 import app.ocnews.data.settings.TextSize
@@ -91,6 +93,18 @@ private val feedListOptions = listOf(
     R.string.feed_list_titles to FeedListStyle.TITLES_ONLY,
 )
 
+private val imageCacheOptions = listOf(
+    R.string.image_cache_never to ImageCacheMode.NEVER,
+    R.string.image_cache_wifi to ImageCacheMode.WIFI_ONLY,
+    R.string.image_cache_wifi_mobile to ImageCacheMode.WIFI_AND_MOBILE,
+    R.string.image_cache_ask to ImageCacheMode.ASK,
+)
+
+private val maxCacheSizeOptions = listOf(250, 500, 750, 1000, 2000, 5000, 10000)
+
+private fun cacheSizeLabel(mb: Int): String =
+    if (mb >= 1000) "${mb / 1000} GB" else "$mb MB"
+
 private val textSizeOptions = listOf(
     R.string.text_size_small to TextSize.SMALL,
     R.string.text_size_default to TextSize.DEFAULT,
@@ -104,8 +118,11 @@ fun SettingsScreen(
     onImportOpml: () -> Unit,
     onCreateFolder: (String) -> Unit,
     addFeedViewModel: AddFeedViewModel,
+    onClearCache: () -> Unit,
     onBack: () -> Unit,
 ) {
+    // Back returns to the list instead of closing the app.
+    BackHandler(onBack = onBack)
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showAddFeed by remember { mutableStateOf(false) }
@@ -194,9 +211,19 @@ fun SettingsScreen(
 
             SectionHeader(R.string.section_data)
             ChoiceRow(R.string.sync_interval, settings.syncIntervalMinutes, intervalOptions, viewModel::setSyncInterval)
-            ActionRow(R.string.clear_cache) {
-                android.widget.Toast.makeText(context, R.string.clear_cache, android.widget.Toast.LENGTH_SHORT).show()
-            }
+            ChoiceRow(
+                R.string.image_cache_offline,
+                settings.imageCacheMode,
+                imageCacheOptions,
+                viewModel::setImageCacheMode,
+            )
+            ChoiceRowLabels(
+                R.string.max_cache_size,
+                settings.maxCacheSizeMb,
+                maxCacheSizeOptions.map { mb -> cacheSizeLabel(mb) to mb },
+                viewModel::setMaxCacheSizeMb,
+            )
+            ActionRow(R.string.clear_cache) { onClearCache() }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
@@ -254,9 +281,22 @@ private fun <T> ChoiceRow(
     options: List<Pair<Int, T>>,
     onSelect: (T) -> Unit,
 ) {
+    val labels = options.map { stringResource(it.first) to it.second }
+    ChoiceRowLabels(titleRes, value, labels, onSelect)
+}
+
+// Same row with labels that are already text (for values such as cache sizes).
+@Composable
+private fun <T> ChoiceRowLabels(
+    titleRes: Int,
+    value: T,
+    options: List<Pair<String, T>>,
+    onSelect: (T) -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
     var rowBottom by remember { mutableIntStateOf(0) }
-    val currentLabel = options.firstOrNull { it.second == value }?.first ?: R.string.settings
+    val currentLabel = options.firstOrNull { it.second == value }?.first
+        ?: stringResource(R.string.settings)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -270,7 +310,7 @@ private fun <T> ChoiceRow(
         Column(Modifier.weight(1f)) {
             Text(text = stringResource(titleRes), style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = stringResource(currentLabel),
+                text = currentLabel,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -280,9 +320,9 @@ private fun <T> ChoiceRow(
             onDismissRequest = { open = false },
             topOffset = with(LocalDensity.current) { rowBottom.toDp() },
         ) {
-            options.forEach { (labelRes, optionValue) ->
+            options.forEach { (label, optionValue) ->
                 DropdownMenuItem(
-                    text = { Text(stringResource(labelRes)) },
+                    text = { Text(label) },
                     onClick = {
                         open = false
                         onSelect(optionValue)

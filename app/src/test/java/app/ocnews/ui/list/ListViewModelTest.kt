@@ -1,6 +1,8 @@
 package app.ocnews.ui.list
 
+import app.ocnews.data.repo.NetworkStatus
 import app.ocnews.data.repo.NewsRepository
+import app.ocnews.data.settings.ImageCacheMode
 import app.ocnews.data.settings.SearchScope
 import app.ocnews.data.session.Session
 import app.ocnews.testutil.FakeFeedDao
@@ -136,6 +138,8 @@ class ListViewModelTest {
     private suspend fun viewModel(
         itemDao: FakeItemDao = FakeItemDao(),
         prefetcher: FakeImagePrefetcher = FakeImagePrefetcher(),
+        settingsStore: FakeSettingsStore = FakeSettingsStore(),
+        onWifi: Boolean = true,
     ): Pair<ListViewModel, FakeItemDao> {
         val sessionStore = FakeSessionStore()
         sessionStore.save(Session("https://example.com", "alice", "token"))
@@ -146,7 +150,12 @@ class ListViewModelTest {
             itemDao = itemDao,
             apiFactory = { FakeNewsApi() },
         )
-        return ListViewModel(repo, FakeSettingsStore(), prefetcher) to itemDao
+        return ListViewModel(
+            repo,
+            settingsStore,
+            prefetcher,
+            NetworkStatus { onWifi },
+        ) to itemDao
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -222,6 +231,84 @@ class ListViewModelTest {
 
             assertEquals(listOf("https://cdn/1.jpg", "https://cdn/3.jpg"), prefetcher.urls)
             assertEquals(DownloadFinished(DownloadKind.IMAGES, 2), vm.finished.value)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `downloadUnreadImages is blocked when the policy is never`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val dao = FakeItemDao()
+            dao.items.add(item(1, unread = true).copy(mediaThumbnail = "https://cdn/1.jpg"))
+            val prefetcher = FakeImagePrefetcher()
+            val settings = FakeSettingsStore().apply { setImageCacheMode(ImageCacheMode.NEVER) }
+            val (vm, _) = viewModel(itemDao = dao, prefetcher = prefetcher, settingsStore = settings)
+
+            vm.downloadUnreadImages()
+            advanceUntilIdle()
+
+            assertEquals(emptyList<String>(), prefetcher.urls)
+            assertEquals(DownloadBlocked.DISABLED, vm.finished.value?.blocked)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `downloadUnreadImages is blocked off wifi when the policy is wifi only`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val dao = FakeItemDao()
+            dao.items.add(item(1, unread = true).copy(mediaThumbnail = "https://cdn/1.jpg"))
+            val prefetcher = FakeImagePrefetcher()
+            val settings = FakeSettingsStore().apply { setImageCacheMode(ImageCacheMode.WIFI_ONLY) }
+            val (vm, _) = viewModel(
+                itemDao = dao,
+                prefetcher = prefetcher,
+                settingsStore = settings,
+                onWifi = false,
+            )
+
+            vm.downloadUnreadImages()
+            advanceUntilIdle()
+
+            assertEquals(emptyList<String>(), prefetcher.urls)
+            assertEquals(DownloadBlocked.WIFI_ONLY, vm.finished.value?.blocked)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `downloadUnreadImages asks off wifi and downloads after confirming`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val dao = FakeItemDao()
+            dao.items.add(item(1, unread = true).copy(mediaThumbnail = "https://cdn/1.jpg"))
+            val prefetcher = FakeImagePrefetcher()
+            val settings = FakeSettingsStore().apply { setImageCacheMode(ImageCacheMode.ASK) }
+            val (vm, _) = viewModel(
+                itemDao = dao,
+                prefetcher = prefetcher,
+                settingsStore = settings,
+                onWifi = false,
+            )
+
+            vm.downloadUnreadImages()
+            advanceUntilIdle()
+            assertEquals(emptyList<String>(), prefetcher.urls)
+            assertTrue(vm.pendingImageDownload.value)
+
+            vm.confirmImageDownload()
+            advanceUntilIdle()
+
+            assertEquals(listOf("https://cdn/1.jpg"), prefetcher.urls)
+            assertFalse(vm.pendingImageDownload.value)
         } finally {
             Dispatchers.resetMain()
         }

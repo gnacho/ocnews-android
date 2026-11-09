@@ -145,6 +145,9 @@ class NewsRepository(
 
     suspend fun saveFullBody(itemId: Long, body: String?) = itemDao.setFullBody(itemId, body)
 
+    // Drops the downloaded full text; the image disk cache is cleared separately.
+    suspend fun clearOfflineCache() = itemDao.clearFullBodies()
+
     // Fetches the server-side full text (readability, cached by the server) and
     // stores it locally, so the article is readable offline afterwards.
     suspend fun fetchFullContent(itemId: Long): String? {
