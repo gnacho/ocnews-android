@@ -32,6 +32,26 @@ class RelatedContentTest {
     }
 
     @Test
+    fun `related headings work for other publishers`() {
+        assertTrue(isRelatedHeading("Artículos relacionados"))
+        assertTrue(isRelatedHeading("Noticias relacionadas"))
+        assertTrue(isRelatedHeading("Contenido relacionado"))
+        assertTrue(isRelatedHeading("Te recomendamos"))
+        assertTrue(isRelatedHeading("Lee también:"))
+        assertTrue(isRelatedHeading("More from The Verge"))
+        assertTrue(isRelatedHeading("You might also like"))
+        assertTrue(isRelatedHeading("Related stories"))
+    }
+
+    @Test
+    fun `cross references match for any site, not just the one in the feed`() {
+        assertTrue(isRelatedLink("En Genbeta | Cómo cambiar el DNS de tu router"))
+        assertTrue(isRelatedLink("En Applesfera | Los mejores accesorios para tu Mac"))
+        assertTrue(isRelatedLink("En Motorpasión | El nuevo eléctrico que llega en 2027"))
+        assertTrue(isRelatedLink("En El País | La noticia del día"))
+    }
+
+    @Test
     fun `cross references to other articles match`() {
         assertTrue(
             isRelatedLink(
