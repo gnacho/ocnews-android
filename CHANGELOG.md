@@ -4,6 +4,13 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.42] - 2026-11-09
+
+### Added
+
+- Black background option for the dark theme, for OLED screens.
+- Volume buttons change article while the reader is open: volume down goes to the next article, volume up to the previous one. The key is consumed, so the system volume does not change.
+
 ## [0.1.40] - 2026-11-09
 
 ### Added

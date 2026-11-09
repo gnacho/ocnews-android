@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -72,7 +73,23 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(
                 LocalDensity provides Density(density.density, density.fontScale * fontScale),
             ) {
-                MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
+                val colorScheme = if (darkTheme) {
+                    if (settings.oledBackground) {
+                        darkColorScheme(
+                            background = Color.Black,
+                            surface = Color.Black,
+                            surfaceContainer = Color(0xFF0D0D0D),
+                            surfaceContainerLow = Color(0xFF0A0A0A),
+                            surfaceContainerHigh = Color(0xFF141414),
+                            surfaceContainerHighest = Color(0xFF1A1A1A),
+                        )
+                    } else {
+                        darkColorScheme()
+                    }
+                } else {
+                    lightColorScheme()
+                }
+                MaterialTheme(colorScheme = colorScheme) {
                 val session by repository.session.collectAsStateWithLifecycle(initialValue = null)
                 val currentSession = session
 
@@ -160,6 +177,7 @@ class MainActivity : ComponentActivity() {
                             onSearchQueryChange = listViewModel::setSearchQuery,
                             fullContent = fullContent,
                             itemDetails = itemDetails,
+                            navigateWithVolume = settings.navigateWithVolumeButtons,
                             download = download,
                             finished = finished,
                             onDownloadArticles = listViewModel::downloadUnreadArticles,

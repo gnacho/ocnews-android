@@ -183,6 +183,12 @@ fun SettingsScreen(
             ChoiceRow(R.string.theme, settings.theme, themeOptions, viewModel::setTheme)
             ChoiceRow(R.string.feed_list_style, settings.feedListStyle, feedListOptions, viewModel::setFeedListStyle)
             ChoiceRow(R.string.text_size, settings.textSize, textSizeOptions, viewModel::setTextSize)
+            SwitchRow(R.string.oled_background, settings.oledBackground, viewModel::setOledBackground)
+            SwitchRow(
+                R.string.volume_buttons,
+                settings.navigateWithVolumeButtons,
+                viewModel::setNavigateWithVolumeButtons,
+            )
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
 

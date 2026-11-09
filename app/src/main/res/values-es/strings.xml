@@ -13,6 +13,8 @@
     <string name="unread_articles">Artículos no leídos</string>
     <string name="starred">Destacados</string>
     <string name="import_opml">Importar OPML</string>
+    <string name="oled_background">Fondo negro</string>
+    <string name="volume_buttons">Botones de volumen cambian de artículo</string>
     <string name="settings">Ajustes</string>
     <string name="about">Acerca de</string>
     <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>
