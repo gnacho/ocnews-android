@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.68] - 2026-11-09
+
+### Changed
+
+- Leaving an article slides the reader out to the right, both with the back arrow and with the system back gesture, instead of swapping the screen at once. The list stays underneath, so it is already in place when the reader has gone.
+
 ## [0.1.66] - 2026-11-09
 
 ### Changed
