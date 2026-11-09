@@ -23,6 +23,9 @@ enum class FeedListStyle { THUMBNAILS, TITLES_ONLY }
 
 enum class TextSize { SMALL, DEFAULT, LARGE }
 
+// When the offline image download is allowed to run.
+enum class ImageCacheMode { NEVER, WIFI_ONLY, WIFI_AND_MOBILE, ASK }
+
 data class AppSettings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val syncIntervalMinutes: Int = 15,
@@ -38,6 +41,9 @@ data class AppSettings(
     val oledBackground: Boolean = false,
     // Volume keys move between articles while the reader is open.
     val navigateWithVolumeButtons: Boolean = false,
+    // Offline image download policy and Coil disk cache size.
+    val imageCacheMode: ImageCacheMode = ImageCacheMode.WIFI_AND_MOBILE,
+    val maxCacheSizeMb: Int = 500,
 )
 
 interface SettingsStore {
@@ -54,6 +60,8 @@ interface SettingsStore {
     suspend fun setTextSize(size: TextSize)
     suspend fun setOledBackground(value: Boolean)
     suspend fun setNavigateWithVolumeButtons(value: Boolean)
+    suspend fun setImageCacheMode(mode: ImageCacheMode)
+    suspend fun setMaxCacheSizeMb(mb: Int)
 }
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -74,6 +82,8 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
     private val kTextSize = stringPreferencesKey("text_size")
     private val kOled = booleanPreferencesKey("oled_background")
     private val kVolumeNav = booleanPreferencesKey("navigate_with_volume_buttons")
+    private val kImageCacheMode = stringPreferencesKey("image_cache_mode")
+    private val kMaxCacheSize = intPreferencesKey("max_cache_size_mb")
 
     override val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
@@ -89,6 +99,8 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
             textSize = decode(p[kTextSize], TextSize.DEFAULT),
             oledBackground = p[kOled] ?: false,
             navigateWithVolumeButtons = p[kVolumeNav] ?: false,
+            imageCacheMode = decode(p[kImageCacheMode], ImageCacheMode.WIFI_AND_MOBILE),
+            maxCacheSizeMb = p[kMaxCacheSize] ?: 500,
         )
     }
 
@@ -138,5 +150,13 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
 
     override suspend fun setNavigateWithVolumeButtons(value: Boolean) {
         context.dataStore.edit { it[kVolumeNav] = value }
+    }
+
+    override suspend fun setImageCacheMode(mode: ImageCacheMode) {
+        context.dataStore.edit { it[kImageCacheMode] = mode.name }
+    }
+
+    override suspend fun setMaxCacheSizeMb(mb: Int) {
+        context.dataStore.edit { it[kMaxCacheSize] = mb }
     }
 }

@@ -26,6 +26,7 @@ import app.ocnews.data.session.Session
 import app.ocnews.data.session.SessionStore
 import app.ocnews.data.settings.AppSettings
 import app.ocnews.data.settings.FeedListStyle
+import app.ocnews.data.settings.ImageCacheMode
 import app.ocnews.data.settings.SearchScope
 import app.ocnews.data.settings.SettingsStore
 import app.ocnews.data.settings.SortOrder
@@ -142,6 +143,12 @@ class FakeSettingsStore : SettingsStore {
     override suspend fun setNavigateWithVolumeButtons(value: Boolean) {
         state.value = state.value.copy(navigateWithVolumeButtons = value)
     }
+    override suspend fun setImageCacheMode(mode: ImageCacheMode) {
+        state.value = state.value.copy(imageCacheMode = mode)
+    }
+    override suspend fun setMaxCacheSizeMb(mb: Int) {
+        state.value = state.value.copy(maxCacheSizeMb = mb)
+    }
 }
 
 class FakeItemDao : ItemDao {
@@ -170,6 +177,9 @@ class FakeItemDao : ItemDao {
     override suspend fun setFullBody(id: Long, body: String?) {
         val idx = items.indexOfFirst { it.id == id }
         if (idx >= 0) items[idx] = items[idx].copy(fullBody = body)
+    }
+    override suspend fun clearFullBodies() {
+        for (i in items.indices) items[i] = items[i].copy(fullBody = null)
     }
     override suspend fun getFullBodies(ids: List<Long>): List<app.ocnews.data.local.ItemFullBody> =
         items.filter { it.id in ids && it.fullBody != null }

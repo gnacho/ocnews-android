@@ -8,7 +8,9 @@ import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemEntity
 import app.ocnews.data.local.ItemSummary
 import app.ocnews.data.repo.ImagePrefetcher
+import app.ocnews.data.repo.NetworkStatus
 import app.ocnews.data.repo.NewsRepository
+import app.ocnews.data.settings.ImageCacheMode
 import app.ocnews.data.settings.SearchScope
 import app.ocnews.data.settings.SettingsStore
 import app.ocnews.data.settings.SortOrder
@@ -30,7 +32,13 @@ enum class DownloadKind { ARTICLES, IMAGES }
 
 data class DownloadProgress(val kind: DownloadKind, val done: Int, val total: Int)
 
-data class DownloadFinished(val kind: DownloadKind, val count: Int)
+enum class DownloadBlocked { DISABLED, WIFI_ONLY }
+
+data class DownloadFinished(
+    val kind: DownloadKind,
+    val count: Int,
+    val blocked: DownloadBlocked? = null,
+)
 
 sealed interface Scope {
     data object All : Scope
@@ -81,6 +89,7 @@ class ListViewModel(
     private val repository: NewsRepository,
     private val settingsStore: SettingsStore,
     private val imagePrefetcher: ImagePrefetcher = ImagePrefetcher { },
+    private val networkStatus: NetworkStatus = NetworkStatus { true },
 ) : ViewModel() {
     private val scope = MutableStateFlow<Scope>(Scope.All)
     private val _searchQuery = MutableStateFlow("")
@@ -89,6 +98,7 @@ class ListViewModel(
     private val _syncing = MutableStateFlow(false)
     private val _download = MutableStateFlow<DownloadProgress?>(null)
     private val _finished = MutableStateFlow<DownloadFinished?>(null)
+    private val _pendingImageDownload = MutableStateFlow(false)
 
     private data class UiFilter(
         val onlyUnread: Boolean,
@@ -118,6 +128,8 @@ class ListViewModel(
     val syncing: StateFlow<Boolean> = _syncing
     val download: StateFlow<DownloadProgress?> = _download
     val finished: StateFlow<DownloadFinished?> = _finished
+    // True when the image download is waiting for the user to confirm off Wi-Fi.
+    val pendingImageDownload: StateFlow<Boolean> = _pendingImageDownload
 
     val folders: StateFlow<List<FolderEntity>> = repository.observeFolders()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -231,25 +243,49 @@ class ListViewModel(
         }
     }
 
-    // Prefetches the hero image of every unread article into the disk cache.
+    // Prefetches the hero image of every unread article into the disk cache,
+    // honouring the image cache policy from the settings.
     fun downloadUnreadImages() {
-        if (_download.value != null) return
+        if (_download.value != null || _pendingImageDownload.value) return
         viewModelScope.launch {
-            val urls = runCatching { repository.unreadImageUrls() }.getOrDefault(emptyList())
-            if (urls.isEmpty()) {
-                _finished.value = DownloadFinished(DownloadKind.IMAGES, 0)
-                return@launch
+            val mode = runCatching { settingsStore.settings.first().imageCacheMode }
+                .getOrDefault(ImageCacheMode.WIFI_AND_MOBILE)
+            val onWifi = runCatching { networkStatus.isOnWifi() }.getOrDefault(true)
+            when {
+                mode == ImageCacheMode.NEVER ->
+                    _finished.value = DownloadFinished(DownloadKind.IMAGES, 0, DownloadBlocked.DISABLED)
+                mode == ImageCacheMode.WIFI_ONLY && !onWifi ->
+                    _finished.value = DownloadFinished(DownloadKind.IMAGES, 0, DownloadBlocked.WIFI_ONLY)
+                mode == ImageCacheMode.ASK && !onWifi -> _pendingImageDownload.value = true
+                else -> runImageDownload()
             }
-            _download.value = DownloadProgress(DownloadKind.IMAGES, 0, urls.size)
-            var done = 0
-            for (url in urls) {
-                runCatching { imagePrefetcher.prefetch(url) }
-                done++
-                _download.value = DownloadProgress(DownloadKind.IMAGES, done, urls.size)
-            }
-            _download.value = null
-            _finished.value = DownloadFinished(DownloadKind.IMAGES, done)
         }
+    }
+
+    fun confirmImageDownload() {
+        _pendingImageDownload.value = false
+        viewModelScope.launch { if (_download.value == null) runImageDownload() }
+    }
+
+    fun cancelImageDownload() {
+        _pendingImageDownload.value = false
+    }
+
+    private suspend fun runImageDownload() {
+        val urls = runCatching { repository.unreadImageUrls() }.getOrDefault(emptyList())
+        if (urls.isEmpty()) {
+            _finished.value = DownloadFinished(DownloadKind.IMAGES, 0)
+            return
+        }
+        _download.value = DownloadProgress(DownloadKind.IMAGES, 0, urls.size)
+        var done = 0
+        for (url in urls) {
+            runCatching { imagePrefetcher.prefetch(url) }
+            done++
+            _download.value = DownloadProgress(DownloadKind.IMAGES, done, urls.size)
+        }
+        _download.value = null
+        _finished.value = DownloadFinished(DownloadKind.IMAGES, done)
     }
 
     fun clearFinished() {
@@ -289,11 +325,12 @@ class ListViewModel(
             repository: NewsRepository,
             settingsStore: SettingsStore,
             imagePrefetcher: ImagePrefetcher,
+            networkStatus: NetworkStatus,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    ListViewModel(repository, settingsStore, imagePrefetcher) as T
+                    ListViewModel(repository, settingsStore, imagePrefetcher, networkStatus) as T
             }
     }
 }

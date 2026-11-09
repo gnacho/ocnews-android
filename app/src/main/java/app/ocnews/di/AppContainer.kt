@@ -5,7 +5,10 @@ import androidx.room.Room
 import app.ocnews.data.local.OcnewsDatabase
 import app.ocnews.data.remote.ApiClient
 import app.ocnews.data.remote.Credentials
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import app.ocnews.data.repo.ImagePrefetcher
+import app.ocnews.data.repo.NetworkStatus
 import app.ocnews.data.repo.NewsRepository
 import app.ocnews.data.session.DataStoreSessionStore
 import app.ocnews.data.session.SessionStore
@@ -25,6 +28,12 @@ class AppContainer(context: Context) {
     val sessionStore: SessionStore = DataStoreSessionStore(appContext)
 
     val settingsStore: SettingsStore = DataStoreSettingsStore(appContext)
+
+    val networkStatus: NetworkStatus = NetworkStatus {
+        val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val caps = cm?.getNetworkCapabilities(cm.activeNetwork)
+        caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+    }
 
     val imagePrefetcher: ImagePrefetcher = ImagePrefetcher { url ->
         val request = coil3.request.ImageRequest.Builder(appContext).data(url).build()

@@ -4,6 +4,19 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.44] - 2026-11-09
+
+### Added
+
+- Cache images offline policy: never, over Wi-Fi only, over Wi-Fi and mobile, or ask when not on Wi-Fi. It decides whether the download images action runs.
+- Max cache size setting, which sizes the image disk cache (250 MB to 10 GB).
+
+### Fixed
+
+- Clear cache now really clears the image disk cache and the downloaded article text.
+- Back in Settings returns to the list instead of closing the app.
+- The max cache size row no longer crashes the settings screen.
+
 ## [0.1.42] - 2026-11-09
 
 ### Added

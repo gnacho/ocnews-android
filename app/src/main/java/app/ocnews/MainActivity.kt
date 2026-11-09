@@ -41,12 +41,13 @@ class MainActivity : ComponentActivity() {
     private val repository get() = (application as OcnewsApplication).container.repository
     private val settingsStore get() = (application as OcnewsApplication).container.settingsStore
     private val imagePrefetcher get() = (application as OcnewsApplication).container.imagePrefetcher
+    private val networkStatus get() = (application as OcnewsApplication).container.networkStatus
 
     private val loginViewModel: LoginViewModel by viewModels {
         LoginViewModel.factory(repository)
     }
     private val listViewModel: ListViewModel by viewModels {
-        ListViewModel.factory(repository, settingsStore, imagePrefetcher)
+        ListViewModel.factory(repository, settingsStore, imagePrefetcher, networkStatus)
     }
     private val addFeedViewModel: AddFeedViewModel by viewModels {
         AddFeedViewModel.factory(repository)
@@ -144,6 +145,15 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             addFeedViewModel = addFeedViewModel,
+                            onClearCache = {
+                                lifecycleScope.launch {
+                                    runCatching { repository.clearOfflineCache() }
+                                    runCatching {
+                                        coil3.SingletonImageLoader.get(applicationContext).diskCache?.clear()
+                                    }
+                                    Toast.makeText(context, R.string.clear_cache_done, Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             onBack = { showSettings = false },
                         )
                     } else {
@@ -160,6 +170,8 @@ class MainActivity : ComponentActivity() {
                         val itemDetails by listViewModel.itemDetails.collectAsStateWithLifecycle()
                         val download by listViewModel.download.collectAsStateWithLifecycle()
                         val finished by listViewModel.finished.collectAsStateWithLifecycle()
+                        val pendingImageDownload by
+                            listViewModel.pendingImageDownload.collectAsStateWithLifecycle()
 
                         MainScreen(
                             folders = folders,
@@ -180,6 +192,9 @@ class MainActivity : ComponentActivity() {
                             navigateWithVolume = settings.navigateWithVolumeButtons,
                             download = download,
                             finished = finished,
+                            pendingImageDownload = pendingImageDownload,
+                            onConfirmImageDownload = listViewModel::confirmImageDownload,
+                            onCancelImageDownload = listViewModel::cancelImageDownload,
                             onDownloadArticles = listViewModel::downloadUnreadArticles,
                             onDownloadImages = listViewModel::downloadUnreadImages,
                             onFinishedShown = listViewModel::clearFinished,

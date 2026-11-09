@@ -86,6 +86,9 @@ interface ItemDao {
     @Query("UPDATE item SET starredPending = 0 WHERE id IN (:ids)")
     suspend fun clearStarredPending(ids: List<Long>)
 
+    @Query("UPDATE item SET fullBody = NULL")
+    suspend fun clearFullBodies()
+
     @Query("DELETE FROM item")
     suspend fun clear()
 }
