@@ -190,6 +190,7 @@ class MainActivity : ComponentActivity() {
                             fullContent = fullContent,
                             itemDetails = itemDetails,
                             navigateWithVolume = settings.navigateWithVolumeButtons,
+                            hideRelated = settings.hideRelatedSections,
                             download = download,
                             finished = finished,
                             pendingImageDownload = pendingImageDownload,

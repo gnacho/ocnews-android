@@ -57,6 +57,10 @@ class SettingsViewModel(private val settingsStore: SettingsStore) : ViewModel() 
         viewModelScope.launch { settingsStore.setFeedListStyle(style) }
     }
 
+    fun setHideRelatedSections(value: Boolean) {
+        viewModelScope.launch { settingsStore.setHideRelatedSections(value) }
+    }
+
     fun setImageCacheMode(mode: ImageCacheMode) {
         viewModelScope.launch { settingsStore.setImageCacheMode(mode) }
     }
