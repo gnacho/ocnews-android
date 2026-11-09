@@ -106,6 +106,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -116,6 +117,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.ocnews.R
@@ -287,7 +289,7 @@ fun MainScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(modifier = Modifier.fillMaxWidth(0.8f)) {
+            ModalDrawerSheet(modifier = Modifier.width(drawerWidth(LocalConfiguration.current.screenWidthDp))) {
                 DrawerContent(
                     folders = folders,
                     feeds = feeds,
@@ -1449,4 +1451,14 @@ private fun scopeLabel(scope: Scope, folders: List<FolderEntity>): String = when
     Scope.Starred -> stringResource(R.string.starred)
     is Scope.Feed -> stringResource(R.string.feed)
     is Scope.Folder -> folders.firstOrNull { it.id == scope.id }?.name ?: stringResource(R.string.feed)
+}
+
+// The drawer is half the screen on a phone, narrower on wide screens, and never
+// wider than MAX_DRAWER_DP, like the official Nextcloud clients.
+private const val MIN_DRAWER_DP = 240f
+private const val MAX_DRAWER_DP = 320f
+
+private fun drawerWidth(screenWidthDp: Int): Dp {
+    val width = if (screenWidthDp > 0) screenWidthDp.toFloat() else 360f
+    return (width * 0.5f).coerceIn(MIN_DRAWER_DP, MAX_DRAWER_DP).dp
 }
