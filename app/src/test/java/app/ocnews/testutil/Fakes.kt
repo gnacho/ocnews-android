@@ -152,6 +152,12 @@ class FakeSettingsStore : SettingsStore {
     override suspend fun setHideRelatedSections(value: Boolean) {
         state.value = state.value.copy(hideRelatedSections = value)
     }
+    override suspend fun setFullTextFeed(feedId: Long, enabled: Boolean) {
+        val current = state.value.fullTextFeedIds
+        state.value = state.value.copy(
+            fullTextFeedIds = if (enabled) current + feedId else current - feedId,
+        )
+    }
 }
 
 class FakeItemDao : ItemDao {

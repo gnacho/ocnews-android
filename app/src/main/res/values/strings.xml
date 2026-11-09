@@ -28,6 +28,12 @@
     <string name="download">Download</string>
     <string name="clear_cache_done">Cache cleared</string>
     <string name="hide_related_sections">Hide "you may also like" blocks</string>
+    <string name="feed_folder">Folder</string>
+    <string name="no_folder">No folder</string>
+    <string name="fetch_full_per_feed">Fetch full article</string>
+    <string name="fetch_full_per_feed_hint">Downloads the full text of this feed when an article opens</string>
+    <string name="save">Save</string>
+    <string name="feed_settings">Feed settings</string>
     <string name="settings">Settings</string>
     <string name="about">About</string>
     <string name="about_text">ocnews %1$s\nRSS reader for OpenCloud.</string>

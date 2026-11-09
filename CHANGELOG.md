@@ -4,6 +4,18 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.64] - 2026-11-09
+
+### Added
+
+- Per-feed settings dialog: choose the folder and turn on "fetch full article" for that feed. Open it by long-pressing the feed in the drawer or from the reader menu ("Feed settings").
+- Feeds with that option on get the server-side full text automatically when an article opens, and it is stored for offline reading.
+
+### Notes
+
+- The folder change goes to the server (POST /feeds/{id}/move).
+- The News API has no per-feed full-text flag, so it is kept locally and applied on open.
+
 ## [0.1.62] - 2026-11-09
 
 ### Changed

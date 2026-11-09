@@ -138,6 +138,10 @@ class ListViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val searchQuery: StateFlow<String> = _searchQuery
     val fullContent: StateFlow<Map<Long, String>> = _fullContent
+    // Feeds configured to fetch the server-side full text when an article opens.
+    val fullTextFeedIds: StateFlow<Set<Long>> = settingsStore.settings
+        .map { it.fullTextFeedIds }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val itemDetails: StateFlow<Map<Long, ItemEntity>> = _itemDetails
     val syncing: StateFlow<Boolean> = _syncing
     val download: StateFlow<DownloadProgress?> = _download
@@ -338,6 +342,14 @@ class ListViewModel(
 
     fun clearFinished() {
         _finished.value = null
+    }
+
+    // Applies the per-feed settings dialog: folder on the server, full text locally.
+    fun saveFeedSettings(feedId: Long, folderId: Long?, fullText: Boolean) {
+        viewModelScope.launch {
+            runCatching { repository.moveFeed(feedId, folderId) }
+            runCatching { settingsStore.setFullTextFeed(feedId, fullText) }
+        }
     }
 
     fun sync() {
