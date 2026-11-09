@@ -1,5 +1,6 @@
 package app.ocnews.ui.common
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,10 +28,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-// Verifies that a real system tap outside the menu only closes it: it must not
-// reach the content underneath. Compose test injection targets the activity
-// window, so the outside tap goes through UiAutomator instead, which injects
-// input at the system level and honours window stacking.
+// A menu must collapse with its animation on every dismissal path (tap outside,
+// system back, tap on the card, tap on an item) and the screen behind must keep
+// its state. Compose test injection targets the activity window, so the outside
+// tap and the back press go through UiAutomator, which injects real system input.
 @RunWith(AndroidJUnit4::class)
 class AppMenuTest {
 
@@ -40,7 +41,11 @@ class AppMenuTest {
     private val device: UiDevice
         get() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
-    private fun showMenu(onOutsideTap: () -> Unit = {}, onItemTap: () -> Unit = {}) =
+    private fun showMenu(
+        onOutsideTap: () -> Unit = {},
+        onItemTap: () -> Unit = {},
+        onBack: () -> Unit = {},
+    ) =
         mutableStateOf(true).also { expanded ->
             rule.setContent {
                 MaterialTheme {
@@ -53,6 +58,8 @@ class AppMenuTest {
                                 .testTag("underneath")
                                 .clickable { onOutsideTap() },
                         )
+                        // Stands for the screen behind: back must not reach it.
+                        BackHandler { onBack() }
                         AppMenu(
                             expanded = expanded.value,
                             onDismissRequest = { expanded.value = false },
@@ -71,32 +78,74 @@ class AppMenuTest {
             }
         }
 
-    @Test
-    fun tappingOutsideClosesTheMenuWithoutActivatingTheContentBelow() {
-        var outsideTaps = 0
-        val expanded = showMenu(onOutsideTap = { outsideTaps++ })
-
+    // The exit animation keeps the card on screen for a moment after dismissal.
+    private fun assertCollapsesWithAnimation(expanded: androidx.compose.runtime.MutableState<Boolean>) {
+        assertFalse("the menu state must be collapsed", expanded.value)
         rule.onNodeWithText("Menu item").assertIsDisplayed()
-
-        // Real tap in the middle of the content that sits under the menu.
-        device.click(device.displayWidth / 2, (device.displayHeight * 0.9f).toInt())
+        rule.mainClock.advanceTimeBy(600)
         rule.waitForIdle()
-
-        assertEquals("the tap outside must not reach the content", 0, outsideTaps)
-        assertFalse("the menu must be collapsed", expanded.value)
         rule.onNodeWithText("Menu item").assertDoesNotExist()
     }
 
     @Test
-    fun tappingAMenuItemRunsItAndClosesTheMenu() {
+    fun tappingOutsideCollapsesTheMenuWithoutActivatingTheContentBelow() {
+        var outsideTaps = 0
+        rule.mainClock.autoAdvance = false
+        val expanded = showMenu(onOutsideTap = { outsideTaps++ })
+        rule.mainClock.advanceTimeByFrame()
+        rule.onNodeWithText("Menu item").assertIsDisplayed()
+
+        device.click(device.displayWidth / 2, (device.displayHeight * 0.9f).toInt())
+        rule.waitForIdle()
+
+        assertEquals("the tap outside must not reach the content", 0, outsideTaps)
+        assertCollapsesWithAnimation(expanded)
+    }
+
+    @Test
+    fun pressingBackCollapsesTheMenuAndDoesNotReachTheContentBehind() {
+        var outsideTaps = 0
+        var backPresses = 0
+        rule.mainClock.autoAdvance = false
+        val expanded = showMenu(
+            onOutsideTap = { outsideTaps++ },
+            onBack = { backPresses++ },
+        )
+        rule.mainClock.advanceTimeByFrame()
+
+        device.pressBack()
+        rule.waitForIdle()
+
+        assertEquals("back must not reach the screen behind", 0, backPresses)
+        assertEquals(0, outsideTaps)
+        assertCollapsesWithAnimation(expanded)
+    }
+
+    @Test
+    fun tappingTheMenuCardCollapsesIt() {
+        rule.mainClock.autoAdvance = false
+        val expanded = showMenu()
+        rule.mainClock.advanceTimeByFrame()
+
+        // Tap the padding above the item, inside the card but not on a menu entry.
+        val bounds = rule.onNodeWithText("Menu item").fetchSemanticsNode().boundsInRoot
+        device.click((bounds.center.x).toInt(), (bounds.top - 12f).toInt())
+        rule.waitForIdle()
+
+        assertCollapsesWithAnimation(expanded)
+    }
+
+    @Test
+    fun tappingAMenuItemRunsItAndCollapsesTheMenu() {
         var itemTaps = 0
+        rule.mainClock.autoAdvance = false
         val expanded = showMenu(onItemTap = { itemTaps++ })
+        rule.mainClock.advanceTimeByFrame()
 
         rule.onNodeWithText("Menu item").performClick()
         rule.waitForIdle()
 
         assertEquals(1, itemTaps)
-        assertFalse(expanded.value)
-        rule.onNodeWithText("Menu item").assertDoesNotExist()
+        assertCollapsesWithAnimation(expanded)
     }
 }

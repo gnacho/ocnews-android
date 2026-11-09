@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,9 +41,12 @@ import kotlinx.coroutines.delay
 
 private const val MENU_ANIM_MS = 120
 
-// Dropdown menu in a full-screen modal window: a tap outside the card only closes
-// the menu and can never reach the content underneath, and the card collapses with
-// a fade and scale animation.
+// Dropdown menu in a full-screen modal window.
+//
+// Every way of closing it (a tap outside the card, the system back gesture, a tap
+// on the card that is not an item) collapses it with the same fade and scale
+// animation, and nothing underneath reacts: the tap or the back press never
+// reaches the screen behind, which stays exactly as it was.
 @Composable
 fun AppMenu(
     expanded: Boolean,
@@ -53,12 +57,22 @@ fun AppMenu(
     maxWidth: Dp = 320.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // Keep the window mounted until the exit animation finishes.
-    var mounted by remember { mutableStateOf(expanded) }
+    // The window stays mounted while the card animates out.
+    var mounted by remember { mutableStateOf(false) }
+    // Drives the enter/exit animation. It is internal on purpose, so the exit
+    // animation always plays even if the caller switches other state at the same
+    // time (opening a screen, changing a setting...).
+    var visible by remember { mutableStateOf(false) }
+
     LaunchedEffect(expanded) {
         if (expanded) {
             mounted = true
-        } else {
+            visible = false
+            // Give the window one frame so the enter animation is visible.
+            withFrameNanos { }
+            visible = true
+        } else if (mounted) {
+            visible = false
             delay(MENU_ANIM_MS.toLong())
             mounted = false
         }
@@ -71,6 +85,9 @@ fun AppMenu(
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false,
             dismissOnClickOutside = false,
+            // Back is handled by the dialog window itself: it only collapses the
+            // menu and never reaches the screen behind.
+            dismissOnBackPress = true,
         ),
     ) {
         val view = LocalView.current
@@ -79,7 +96,7 @@ fun AppMenu(
             (view.parent as? DialogWindowProvider)?.window?.setDimAmount(0f)
         }
         Box(Modifier.fillMaxSize()) {
-            // Scrim: consumes every tap that is not on the menu card.
+            // Scrim: consumes every tap outside the card and only collapses the menu.
             Box(
                 Modifier
                     .fillMaxSize()
@@ -89,7 +106,7 @@ fun AppMenu(
                     },
             )
             AnimatedVisibility(
-                visible = expanded,
+                visible = visible,
                 enter = fadeIn(tween(MENU_ANIM_MS)) +
                     scaleIn(tween(MENU_ANIM_MS), initialScale = 0.9f, transformOrigin = TransformOrigin(1f, 0f)),
                 exit = fadeOut(tween(MENU_ANIM_MS)) +
@@ -106,7 +123,18 @@ fun AppMenu(
                     tonalElevation = 3.dp,
                     shadowElevation = 6.dp,
                 ) {
-                    Column(Modifier.padding(vertical = 8.dp), content = content)
+                    Column(
+                        modifier = Modifier
+                            // A tap on the card itself, outside its items, also
+                            // collapses the menu. Item clicks consume the tap first.
+                            // The detector goes before the padding so the padded
+                            // area counts as part of the card.
+                            .pointerInput(Unit) {
+                                detectTapGestures { onDismissRequest() }
+                            }
+                            .padding(vertical = 8.dp),
+                        content = content,
+                    )
                 }
             }
         }
