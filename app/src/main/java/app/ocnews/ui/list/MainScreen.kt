@@ -57,6 +57,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -407,19 +408,25 @@ fun MainScreen(
                                 )
                             }
                         }
-                    ArticleList(
-                        items = items,
-                        feeds = feeds,
-                        swipeRight = settings.swipeRight,
-                        swipeLeft = settings.swipeLeft,
-                        feedListStyle = settings.feedListStyle,
-                        onToggleRead = onToggleRead,
-                        onToggleStarred = onToggleStarred,
-                        onItemClick = { item ->
-                            readerItems = items
-                            selectedIndex = items.indexOfFirst { it.id == item.id }.takeIf { it >= 0 }
-                        },
-                    )
+                    PullToRefreshBox(
+                        isRefreshing = syncing,
+                        onRefresh = onSync,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        ArticleList(
+                            items = items,
+                            feeds = feeds,
+                            swipeRight = settings.swipeRight,
+                            swipeLeft = settings.swipeLeft,
+                            feedListStyle = settings.feedListStyle,
+                            onToggleRead = onToggleRead,
+                            onToggleStarred = onToggleStarred,
+                            onItemClick = { item ->
+                                readerItems = items
+                                selectedIndex = items.indexOfFirst { it.id == item.id }.takeIf { it >= 0 }
+                            },
+                        )
+                    }
                     }
                 }
             }
@@ -611,7 +618,13 @@ private fun ArticleList(
     onItemClick: (ItemSummary) -> Unit,
 ) {
     if (items.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // Scrollable so pull-to-refresh also works with an empty list.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.Center,
+        ) {
             Text(stringResource(R.string.no_articles), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
