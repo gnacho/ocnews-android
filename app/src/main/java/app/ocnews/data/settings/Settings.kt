@@ -34,6 +34,10 @@ data class AppSettings(
     val searchIn: SearchScope = SearchScope.TITLE,
     val feedListStyle: FeedListStyle = FeedListStyle.THUMBNAILS,
     val textSize: TextSize = TextSize.DEFAULT,
+    // Pure black background when the dark theme is active (OLED screens).
+    val oledBackground: Boolean = false,
+    // Volume keys move between articles while the reader is open.
+    val navigateWithVolumeButtons: Boolean = false,
 )
 
 interface SettingsStore {
@@ -48,6 +52,8 @@ interface SettingsStore {
     suspend fun setSearchIn(scope: SearchScope)
     suspend fun setFeedListStyle(style: FeedListStyle)
     suspend fun setTextSize(size: TextSize)
+    suspend fun setOledBackground(value: Boolean)
+    suspend fun setNavigateWithVolumeButtons(value: Boolean)
 }
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -66,6 +72,8 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
     private val kSearchIn = stringPreferencesKey("search_in")
     private val kFeedList = stringPreferencesKey("feed_list_style")
     private val kTextSize = stringPreferencesKey("text_size")
+    private val kOled = booleanPreferencesKey("oled_background")
+    private val kVolumeNav = booleanPreferencesKey("navigate_with_volume_buttons")
 
     override val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
@@ -79,6 +87,8 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
             searchIn = decode(p[kSearchIn], SearchScope.TITLE),
             feedListStyle = decode(p[kFeedList], FeedListStyle.THUMBNAILS),
             textSize = decode(p[kTextSize], TextSize.DEFAULT),
+            oledBackground = p[kOled] ?: false,
+            navigateWithVolumeButtons = p[kVolumeNav] ?: false,
         )
     }
 
@@ -120,5 +130,13 @@ class DataStoreSettingsStore(private val context: Context) : SettingsStore {
 
     override suspend fun setTextSize(size: TextSize) {
         context.dataStore.edit { it[kTextSize] = size.name }
+    }
+
+    override suspend fun setOledBackground(value: Boolean) {
+        context.dataStore.edit { it[kOled] = value }
+    }
+
+    override suspend fun setNavigateWithVolumeButtons(value: Boolean) {
+        context.dataStore.edit { it[kVolumeNav] = value }
     }
 }

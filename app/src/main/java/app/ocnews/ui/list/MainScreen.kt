@@ -80,6 +80,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -139,6 +147,7 @@ fun MainScreen(
     itemDetails: Map<Long, ItemEntity>,
     download: DownloadProgress?,
     finished: DownloadFinished?,
+    navigateWithVolume: Boolean,
     onDownloadArticles: () -> Unit,
     onDownloadImages: () -> Unit,
     onFinishedShown: () -> Unit,
@@ -388,6 +397,7 @@ fun MainScreen(
                 isDark = isDark,
                 fullContent = fullContent,
                 itemDetails = itemDetails,
+                navigateWithVolume = navigateWithVolume,
                 onLoadDetail = onLoadDetail,
                 onFetchFull = onFetchFull,
                 onBack = { selectedIndex = null },
@@ -691,6 +701,7 @@ private fun Reader(
     isDark: Boolean,
     fullContent: Map<Long, String>,
     itemDetails: Map<Long, ItemEntity>,
+    navigateWithVolume: Boolean,
     onLoadDetail: (Long) -> Unit,
     onFetchFull: (Long) -> Unit,
     onBack: () -> Unit,
@@ -707,7 +718,52 @@ private fun Reader(
     val currentDetail = itemDetails[current.id]
     val feedTitle = feeds.firstOrNull { it.id == current.feedId }?.title
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+    val keyScope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
+    if (navigateWithVolume) {
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .then(
+                if (navigateWithVolume) {
+                    Modifier
+                        .focusRequester(focusRequester)
+                        .focusable()
+                        .onPreviewKeyEvent { event ->
+                            when (event.key) {
+                                // Down goes to the next article, up to the previous one,
+                                // matching the Nextcloud News client.
+                                Key.VolumeDown -> {
+                                    if (event.type == KeyEventType.KeyDown) {
+                                        keyScope.launch {
+                                            pagerState.animateScrollToPage(
+                                                (pagerState.currentPage + 1).coerceAtMost(items.lastIndex)
+                                            )
+                                        }
+                                    }
+                                    true
+                                }
+                                Key.VolumeUp -> {
+                                    if (event.type == KeyEventType.KeyDown) {
+                                        keyScope.launch {
+                                            pagerState.animateScrollToPage(
+                                                (pagerState.currentPage - 1).coerceAtLeast(0)
+                                            )
+                                        }
+                                    }
+                                    true
+                                }
+                                else -> false
+                            }
+                        }
+                } else {
+                    Modifier
+                }
+            ),
+    ) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             ReaderTopBar(
                 item = current,

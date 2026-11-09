@@ -56,6 +56,14 @@ class SettingsViewModel(private val settingsStore: SettingsStore) : ViewModel() 
         viewModelScope.launch { settingsStore.setFeedListStyle(style) }
     }
 
+    fun setOledBackground(value: Boolean) {
+        viewModelScope.launch { settingsStore.setOledBackground(value) }
+    }
+
+    fun setNavigateWithVolumeButtons(value: Boolean) {
+        viewModelScope.launch { settingsStore.setNavigateWithVolumeButtons(value) }
+    }
+
     fun setTextSize(size: TextSize) {
         viewModelScope.launch { settingsStore.setTextSize(size) }
     }

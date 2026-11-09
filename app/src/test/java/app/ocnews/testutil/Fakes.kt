@@ -136,6 +136,12 @@ class FakeSettingsStore : SettingsStore {
     override suspend fun setSearchIn(scope: SearchScope) { state.value = state.value.copy(searchIn = scope) }
     override suspend fun setFeedListStyle(style: FeedListStyle) { state.value = state.value.copy(feedListStyle = style) }
     override suspend fun setTextSize(size: TextSize) { state.value = state.value.copy(textSize = size) }
+    override suspend fun setOledBackground(value: Boolean) {
+        state.value = state.value.copy(oledBackground = value)
+    }
+    override suspend fun setNavigateWithVolumeButtons(value: Boolean) {
+        state.value = state.value.copy(navigateWithVolumeButtons = value)
+    }
 }
 
 class FakeItemDao : ItemDao {
