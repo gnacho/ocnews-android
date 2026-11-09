@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.52] - 2026-11-09
+
+### Changed
+
+- The related-content filter covers more publishers: more Spanish and English headings ("Artículos relacionados", "Noticias relacionadas", "Te recomendamos", "Lee también", "More from", "You might also like", "Related stories"...) plus French and German variants. The "En <site> | <title>" rule already worked for any site, not only the feeds tested.
+
 ## [0.1.50] - 2026-11-09
 
 ### Changed
