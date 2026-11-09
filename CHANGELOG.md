@@ -4,6 +4,13 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.38] - 2026-11-09
+
+### Fixed
+
+- Every way of closing a menu now plays the same collapse animation and leaves the screen behind untouched: a tap outside, the system back gesture, and a tap on the menu card outside its entries.
+- Back no longer reaches the screen behind while a menu is open, so it cannot close the reader or navigate away.
+
 ## [0.1.36] - 2026-11-09
 
 ### Fixed
