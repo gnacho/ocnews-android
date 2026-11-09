@@ -2,7 +2,9 @@ package app.ocnews.ui.list
 
 import app.ocnews.data.repo.NewsRepository
 import app.ocnews.data.settings.SearchScope
+import app.ocnews.data.session.Session
 import app.ocnews.testutil.FakeFeedDao
+import app.ocnews.testutil.FakeImagePrefetcher
 import app.ocnews.testutil.FakeFolderDao
 import app.ocnews.testutil.FakeItemDao
 import app.ocnews.testutil.FakeNewsApi
@@ -131,15 +133,20 @@ class ListViewModelTest {
     // --- ViewModel ---
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private fun viewModel(itemDao: FakeItemDao = FakeItemDao()): Pair<ListViewModel, FakeItemDao> {
+    private suspend fun viewModel(
+        itemDao: FakeItemDao = FakeItemDao(),
+        prefetcher: FakeImagePrefetcher = FakeImagePrefetcher(),
+    ): Pair<ListViewModel, FakeItemDao> {
+        val sessionStore = FakeSessionStore()
+        sessionStore.save(Session("https://example.com", "alice", "token"))
         val repo = NewsRepository(
-            sessionStore = FakeSessionStore(),
+            sessionStore = sessionStore,
             folderDao = FakeFolderDao(),
             feedDao = FakeFeedDao(),
             itemDao = itemDao,
             apiFactory = { FakeNewsApi() },
         )
-        return ListViewModel(repo, FakeSettingsStore()) to itemDao
+        return ListViewModel(repo, FakeSettingsStore(), prefetcher) to itemDao
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -169,6 +176,52 @@ class ListViewModelTest {
             advanceUntilIdle()
 
             assertEquals(listOf(1L to true), itemDao.setStarredCalls)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `downloadUnreadArticles stores the full text of every unread article`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val dao = FakeItemDao()
+            dao.items.add(item(1, unread = true))
+            dao.items.add(item(2, unread = false))
+            dao.items.add(item(3, unread = true))
+            val (vm, _) = viewModel(itemDao = dao)
+
+            vm.downloadUnreadArticles()
+            advanceUntilIdle()
+
+            assertEquals("full body for 1", dao.items.first { it.id == 1L }.fullBody)
+            assertEquals(null, dao.items.first { it.id == 2L }.fullBody)
+            assertEquals("full body for 3", dao.items.first { it.id == 3L }.fullBody)
+            assertEquals(DownloadFinished(DownloadKind.ARTICLES, 2), vm.finished.value)
+            assertEquals(null, vm.download.value)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `downloadUnreadImages prefetches the image of every unread article`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val dao = FakeItemDao()
+            dao.items.add(item(1, unread = true).copy(mediaThumbnail = "https://cdn/1.jpg"))
+            dao.items.add(item(2, unread = false).copy(mediaThumbnail = "https://cdn/2.jpg"))
+            dao.items.add(item(3, unread = true).copy(thumbnailUrl = "https://cdn/3.jpg"))
+            val prefetcher = FakeImagePrefetcher()
+            val (vm, _) = viewModel(itemDao = dao, prefetcher = prefetcher)
+
+            vm.downloadUnreadImages()
+            advanceUntilIdle()
+
+            assertEquals(listOf("https://cdn/1.jpg", "https://cdn/3.jpg"), prefetcher.urls)
+            assertEquals(DownloadFinished(DownloadKind.IMAGES, 2), vm.finished.value)
         } finally {
             Dispatchers.resetMain()
         }

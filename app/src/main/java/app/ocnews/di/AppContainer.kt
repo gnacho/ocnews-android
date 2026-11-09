@@ -5,6 +5,7 @@ import androidx.room.Room
 import app.ocnews.data.local.OcnewsDatabase
 import app.ocnews.data.remote.ApiClient
 import app.ocnews.data.remote.Credentials
+import app.ocnews.data.repo.ImagePrefetcher
 import app.ocnews.data.repo.NewsRepository
 import app.ocnews.data.session.DataStoreSessionStore
 import app.ocnews.data.session.SessionStore
@@ -19,11 +20,17 @@ class AppContainer(context: Context) {
         appContext,
         OcnewsDatabase::class.java,
         "ocnews.db",
-    ).addMigrations(OcnewsDatabase.MIGRATION_1_2).build()
+    ).addMigrations(OcnewsDatabase.MIGRATION_1_2, OcnewsDatabase.MIGRATION_2_3).build()
 
     val sessionStore: SessionStore = DataStoreSessionStore(appContext)
 
     val settingsStore: SettingsStore = DataStoreSettingsStore(appContext)
+
+    val imagePrefetcher: ImagePrefetcher = ImagePrefetcher { url ->
+        val request = coil3.request.ImageRequest.Builder(appContext).data(url).build()
+        coil3.SingletonImageLoader.get(appContext).execute(request)
+        Unit
+    }
 
     val repository: NewsRepository = NewsRepository(
         sessionStore = sessionStore,

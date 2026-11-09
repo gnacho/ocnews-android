@@ -22,11 +22,11 @@ class SyncEngine(
 
         // Unread items: type=3 (all), getRead=false, batchSize=-1, oldest first.
         val unread = api.items(type = 3, getRead = false, batchSize = -1, oldestFirst = true)
-        itemDao.upsertAll(unread.items.map { it.toEntity() })
+        itemDao.upsertAll(withOfflineText(unread.items.map { it.toEntity() }))
 
         // Starred items (may include read ones).
         val starred = api.items(type = 2, getRead = true, batchSize = -1, oldestFirst = true)
-        itemDao.upsertAll(starred.items.map { it.toEntity() })
+        itemDao.upsertAll(withOfflineText(starred.items.map { it.toEntity() }))
     }
 
     suspend fun incrementalSync() {
@@ -36,8 +36,17 @@ class SyncEngine(
 
         val watermark = itemDao.getHighestLastModified() ?: 0L
         val updated = api.itemsUpdated(lastModified = watermark)
-        itemDao.upsertAll(updated.items.map { it.toEntity() })
+        itemDao.upsertAll(withOfflineText(updated.items.map { it.toEntity() }))
     }
+
+    // The insert replaces the whole row, so carry the downloaded offline text over.
+    private suspend fun withOfflineText(items: List<app.ocnews.data.local.ItemEntity>) =
+        if (items.isEmpty()) {
+            items
+        } else {
+            val existing = itemDao.getFullBodies(items.map { it.id }).associate { it.id to it.fullBody }
+            items.map { item -> existing[item.id]?.let { item.copy(fullBody = it) } ?: item }
+        }
 
     private suspend fun refreshFoldersAndFeeds() {
         val folders = api.folders()

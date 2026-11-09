@@ -2,6 +2,7 @@ package app.ocnews.ui.list
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,6 +51,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
@@ -135,6 +137,11 @@ fun MainScreen(
     onSearchQueryChange: (String) -> Unit,
     fullContent: Map<Long, String>,
     itemDetails: Map<Long, ItemEntity>,
+    download: DownloadProgress?,
+    finished: DownloadFinished?,
+    onDownloadArticles: () -> Unit,
+    onDownloadImages: () -> Unit,
+    onFinishedShown: () -> Unit,
     onFetchFull: (Long) -> Unit,
     onLoadDetail: (Long) -> Unit,
     addFeedViewModel: AddFeedViewModel,
@@ -154,6 +161,19 @@ fun MainScreen(
     var confirmLogout by remember { mutableStateOf(false) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    LaunchedEffect(finished) {
+        val result = finished ?: return@LaunchedEffect
+        val text = when {
+            result.count == 0 -> context.getString(R.string.nothing_to_download)
+            result.kind == DownloadKind.ARTICLES ->
+                context.resources.getQuantityString(R.plurals.downloaded_articles, result.count, result.count)
+            else ->
+                context.resources.getQuantityString(R.plurals.downloaded_images, result.count, result.count)
+        }
+        Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+        onFinishedShown()
+    }
 
     if (showAddFeed) {
         AddFeedDialog(
@@ -286,6 +306,20 @@ fun MainScreen(
                                             },
                                         )
                                         DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.download_articles)) },
+                                            onClick = {
+                                                profileMenuOpen = false
+                                                onDownloadArticles()
+                                            },
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.download_images)) },
+                                            onClick = {
+                                                profileMenuOpen = false
+                                                onDownloadImages()
+                                            },
+                                        )
+                                        DropdownMenuItem(
                                             text = { Text(stringResource(R.string.mark_all_read)) },
                                             onClick = {
                                                 profileMenuOpen = false
@@ -308,6 +342,28 @@ fun MainScreen(
                 },
             ) { padding ->
                 Box(Modifier.fillMaxSize().padding(padding)) {
+                    Column(Modifier.fillMaxSize()) {
+                        download?.let { progress ->
+                            Column(Modifier.fillMaxWidth()) {
+                                LinearProgressIndicator(
+                                progress = {
+                                    if (progress.total == 0) 0f
+                                    else progress.done.toFloat() / progress.total
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                )
+                                Text(
+                                    text = stringResource(
+                                        R.string.download_progress,
+                                        progress.done,
+                                        progress.total,
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                )
+                            }
+                        }
                     ArticleList(
                         items = items,
                         feeds = feeds,
@@ -320,6 +376,7 @@ fun MainScreen(
                             selectedIndex = items.indexOfFirst { it.id == item.id }.takeIf { it >= 0 }
                         },
                     )
+                    }
                 }
             }
         } else {
@@ -673,7 +730,7 @@ private fun Reader(
                     item = pageItem,
                     faviconUrl = favicon,
                     isDark = isDark,
-                    body = fullContent[pageItem.id] ?: detail?.body,
+                    body = fullContent[pageItem.id] ?: detail?.fullBody ?: detail?.body,
                 )
             }
         }

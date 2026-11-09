@@ -41,6 +41,38 @@ class SyncEngineTest {
     }
 
     @Test
+    fun `incrementalSync keeps the downloaded offline text`() = runTest {
+        val itemDao = FakeItemDao().apply {
+            items.add(
+                item(7, unread = true).copy(
+                    lastModified = 5,
+                    title = "old title",
+                    fullBody = "<p>offline text</p>",
+                )
+            )
+        }
+        val api = FakeNewsApi(
+            itemsUpdatedResponse = ItemsResponse(
+                listOf(
+                    ItemDto(
+                        id = 7,
+                        title = "new title",
+                        feedId = 1,
+                        unread = true,
+                        lastModified = 6,
+                    )
+                )
+            )
+        )
+
+        SyncEngine(api, FakeFolderDao(), FakeFeedDao(), itemDao).incrementalSync()
+
+        val synced = itemDao.items.first { it.id == 7L }
+        assertEquals("new title", synced.title)
+        assertEquals("<p>offline text</p>", synced.fullBody)
+    }
+
+    @Test
     fun `pushPendingState sends nothing when no pending`() = runTest {
         val api = FakeNewsApi()
         SyncEngine(api, FakeFolderDao(), FakeFeedDao(), FakeItemDao()).pushPendingState()
@@ -66,7 +98,8 @@ class SyncEngineTest {
 
         assertEquals(1, folderDao.folders.size)
         assertEquals(1, feedDao.feeds.size)
-        assertEquals(2, itemDao.items.size) // same item upserted twice (unread + starred)
+        // The same item arrives twice (unread + starred) and REPLACE keeps one row.
+        assertEquals(1, itemDao.items.size)
         assertEquals(
             listOf(Triple(3, false, -1), Triple(2, true, -1)),
             api.itemsCalls,
