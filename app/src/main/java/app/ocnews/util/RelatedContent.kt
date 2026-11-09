@@ -50,6 +50,28 @@ fun isRelatedHeading(text: String): Boolean {
     return relatedHeadings.any { normalized.startsWith(it) }
 }
 
+// Visible characters of a HTML fragment: tags and whitespace removed.
+private fun visibleLength(html: String): Int =
+    html.replace(Regex("<[^>]*>"), " ")
+        .replace("&nbsp;", " ")
+        .count { !it.isWhitespace() }
+
+// Share of the visible text that sits inside links. Boilerplate blocks (related
+// cards, cross references, tag lists) are almost entirely links, while prose
+// keeps the links as a small fraction.
+fun linkTextRatio(html: String): Float {
+    val total = visibleLength(html)
+    if (total == 0) return 0f
+    val linkChars = Regex("<a\\b[^>]*>(.*?)</a>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        .findAll(html)
+        .sumOf { it.groupValues[1].replace(Regex("<[^>]*>"), "").replace("&nbsp;", " ").count { c -> !c.isWhitespace() } }
+    return linkChars.toFloat() / total
+}
+
+// A short block that is mostly a link is boilerplate, whatever the site calls it.
+fun isLinkHeavyBlock(html: String, maxChars: Int = 300, threshold: Float = 0.5f): Boolean =
+    visibleLength(html) in 1..maxChars && linkTextRatio(html) >= threshold
+
 // Single-line cross references such as "En Xataka | Another article title",
 // which the same publisher appends to the end of its articles.
 fun isRelatedLink(text: String): Boolean {

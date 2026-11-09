@@ -74,6 +74,25 @@ class RelatedContentTest {
     }
 
     @Test
+    fun `a short block that is almost entirely a link is boilerplate`() {
+        assertTrue(isLinkHeavyBlock("""<p>En Xataka | <a href="https://x.com/a">La luna estaría compuesta por un fragmento de la Tierra</a></p>"""))
+        assertTrue(isLinkHeavyBlock("""<p><a href="https://x.com/a">Título de otro artículo</a></p>"""))
+        assertTrue(isLinkHeavyBlock("""<p>Imagen | <a href="https://x.com/a">Grebenkov</a></p>"""))
+    }
+
+    @Test
+    fun `prose with links is not boilerplate`() {
+        assertFalse(
+            isLinkHeavyBlock(
+                """<p>Las <a href="https://x.com/a">aspiradoras Dyson</a> son de las más demandadas por quienes quieren un dispositivo de limpieza para su hogar con buena calidad y a buen precio.</p>"""
+            )
+        )
+        assertFalse(isLinkHeavyBlock("""<p>Texto sin enlaces de ningún tipo.</p>"""))
+        // Long link lists are ignored by length, and prose is kept.
+        assertFalse(isLinkHeavyBlock("""<p><a href="https://x.com/a">""" + "palabra ".repeat(60) + """</a></p>"""))
+    }
+
+    @Test
     fun `unrelated text does not match`() {
         assertFalse(isRelatedHeading("El Gobierno lleva a TikTok ante la Fiscalía"))
         assertFalse(isRelatedHeading(""))
