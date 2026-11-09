@@ -96,6 +96,23 @@ class ListViewModelTest {
     }
 
     @Test
+    fun `filterItems keeps articles read this session when only unread`() {
+        val items = listOf(
+            summary(1, unread = false),
+            summary(2, unread = true),
+            summary(3, unread = false),
+        )
+        val result = filterItems(
+            items,
+            emptyList(),
+            Scope.All,
+            onlyUnread = true,
+            keepReadIds = setOf(1L),
+        )
+        assertEquals(listOf(1L, 2L), result.map { it.id })
+    }
+
+    @Test
     fun `filterItems content search uses the ids resolved by SQL`() {
         val items = listOf(
             summary(1, unread = true, title = "Other"),

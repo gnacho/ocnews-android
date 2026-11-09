@@ -4,6 +4,14 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.62] - 2026-11-09
+
+### Changed
+
+- Articles read while browsing stay in the list until the next refresh, even with the unread filter on, so going back from the reader does not make them vanish.
+- Read articles are shown without bold and with a translucent tone.
+- Swiping a row now shows the action it will run: a green check for read, an amber star for favourite. The action only runs when the swipe passes the threshold; a shorter one springs back.
+
 ## [0.1.60] - 2026-11-09
 
 ### Added

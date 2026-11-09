@@ -26,6 +26,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -69,6 +71,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -78,6 +81,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -659,8 +663,20 @@ private fun ArticleRow(
     onToggleStarred: (Long, Boolean) -> Unit,
 ) {
     val context = LocalContext.current
-    var offsetX by remember { mutableStateOf(0f) }
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    val commitPx = with(density) { 140.dp.toPx() }
+    val revealPx = with(density) { 48.dp.toPx() }
     val thumbnail = if (showThumbnail) item.imageUrl else null
+
+    // Only a full swipe runs the action; a shorter one just springs back.
+    val action = when {
+        offsetX > revealPx -> swipeRight
+        offsetX < -revealPx -> swipeLeft
+        else -> SwipeAction.NOTHING
+    }
+
     fun runAction(action: SwipeAction) {
         when (action) {
             SwipeAction.STAR -> if (!item.starred) onToggleStarred(item.id, item.starred)
@@ -668,83 +684,136 @@ private fun ArticleRow(
             SwipeAction.NOTHING -> Unit
         }
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(96.dp)
-            .offset { IntOffset(offsetX.toInt(), 0) }
-            .clickable(onClick = onClick)
-            .pointerInput(item.id, swipeRight, swipeLeft) {
-                detectHorizontalDragGestures(
-                    onDragEnd = {
-                        if (offsetX < -120f) runAction(swipeLeft)
-                        else if (offsetX > 120f) runAction(swipeRight)
-                        offsetX = 0f
-                    },
-                    onHorizontalDrag = { change, amount ->
-                        offsetX += amount
-                        change.consume()
-                    },
+
+    Box(Modifier.fillMaxWidth().height(96.dp)) {
+        // Hint behind the row: green check for read, amber star for favourite.
+        if (action != SwipeAction.NOTHING) {
+            val progress = (kotlin.math.abs(offsetX) / commitPx).coerceIn(0f, 1f)
+            val (background, icon) = when (action) {
+                SwipeAction.READ -> Color(0xFF2E7D32) to Icons.Filled.CheckCircle
+                SwipeAction.STAR -> Color(0xFFFFC107) to Icons.Filled.Star
+                SwipeAction.NOTHING -> Color.Transparent to Icons.Filled.CheckCircle
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(background.copy(alpha = 0.25f + 0.75f * progress)),
+                contentAlignment = if (offsetX > 0) Alignment.CenterStart else Alignment.CenterEnd,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.6f + 0.4f * progress),
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .size((24 + 8 * progress).dp),
                 )
             }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (item.unread) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (feed != null) {
-                    if (feed.faviconLink.isNotBlank()) {
-                        AsyncImage(
-                            model = feed.faviconLink,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(96.dp)
+                .offset { IntOffset(offsetX.toInt(), 0) }
+                .background(MaterialTheme.colorScheme.surface)
+                .clickable(onClick = onClick)
+                .pointerInput(item.id, swipeRight, swipeLeft) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            val travel = offsetX
+                            val target = when {
+                                travel >= commitPx -> swipeRight
+                                travel <= -commitPx -> swipeLeft
+                                else -> SwipeAction.NOTHING
+                            }
+                            runAction(target)
+                            scope.launch {
+                                androidx.compose.animation.core.animate(
+                                    initialValue = travel,
+                                    targetValue = 0f,
+                                    animationSpec = tween(180),
+                                ) { value, _ -> offsetX = value }
+                            }
+                        },
+                        onHorizontalDrag = { change, amount ->
+                            offsetX = (offsetX + amount).coerceIn(-commitPx * 1.3f, commitPx * 1.3f)
+                            change.consume()
+                        },
+                    )
+                }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (item.unread) FontWeight.SemiBold else FontWeight.Normal,
+                    color = MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = if (item.unread) 1f else READ_ALPHA,
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (feed != null) {
+                        if (feed.faviconLink.isNotBlank()) {
+                            AsyncImage(
+                                model = feed.faviconLink,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .alpha(if (item.unread) 1f else READ_ALPHA),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = feed.title,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = if (item.unread) 1f else READ_ALPHA,
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "·",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = if (item.unread) 1f else READ_ALPHA,
+                            ),
                         )
                         Spacer(Modifier.width(4.dp))
                     }
                     Text(
-                        text = feed.title,
+                        text = relativeTime(item.pubDate).format(context),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                            alpha = if (item.unread) 1f else READ_ALPHA,
+                        ),
                     )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "·",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(4.dp))
                 }
-                Text(
-                    text = relativeTime(item.pubDate).format(context),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            }
+            if (thumbnail != null) {
+                Spacer(Modifier.width(12.dp))
+                AsyncImage(
+                    model = thumbnail,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .alpha(if (item.unread) 1f else READ_ALPHA)
+                        .clip(RoundedCornerShape(8.dp)),
                 )
             }
         }
-        if (thumbnail != null) {
-            Spacer(Modifier.width(12.dp))
-            AsyncImage(
-                model = thumbnail,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-            )
-        }
     }
 }
+
+private const val READ_ALPHA = 0.55f
 
 @Composable
 private fun Reader(

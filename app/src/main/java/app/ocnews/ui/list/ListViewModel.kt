@@ -59,6 +59,7 @@ fun filterItems(
     sort: SortOrder = SortOrder.NEWEST_FIRST,
     searchIn: SearchScope = SearchScope.TITLE,
     contentMatchIds: Set<Long> = emptySet(),
+    keepReadIds: Set<Long> = emptySet(),
 ): List<ItemSummary> {
     val scoped = when (scope) {
         Scope.All -> items
@@ -69,7 +70,13 @@ fun filterItems(
             items.filter { it.feedId in feedIds }
         }
     }
-    val unreadFiltered = if (onlyUnread) scoped.filter { it.unread } else scoped
+    // Articles read during this session stay in the list until the next refresh,
+    // so going back from the reader does not make them vanish.
+    val unreadFiltered = if (onlyUnread) {
+        scoped.filter { it.unread || it.id in keepReadIds }
+    } else {
+        scoped
+    }
     val q = query.trim()
     val searched = if (q.isEmpty()) unreadFiltered else unreadFiltered.filter {
         val inTitle = it.title.contains(q, ignoreCase = true)
@@ -103,12 +110,15 @@ class ListViewModel(
     // Articles the user explicitly kept unread during this reader session.
     private val keepUnread = mutableSetOf<Long>()
     private val autoHandled = mutableSetOf<Long>()
+    // Read during this session: kept in the list until a refresh happens.
+    private val readThisSession = MutableStateFlow<Set<Long>>(emptySet())
 
     private data class UiFilter(
         val onlyUnread: Boolean,
         val query: String,
         val sort: SortOrder,
         val searchIn: SearchScope,
+        val keepRead: Set<Long>,
     )
 
     init {
@@ -169,12 +179,22 @@ class ListViewModel(
         repository.observeItems(),
         repository.observeFeeds(),
         scope,
-        combine(onlyUnreadState, _searchQuery, settingsStore.settings) { ou, q, s ->
-            UiFilter(ou, q, s.sortOrder, s.searchIn)
+        combine(onlyUnreadState, _searchQuery, settingsStore.settings, readThisSession) { ou, q, s, keepRead ->
+            UiFilter(ou, q, s.sortOrder, s.searchIn, keepRead)
         },
         contentMatchIds,
     ) { list, feeds, sc, f, matches ->
-        filterItems(list, feeds, sc, f.onlyUnread, f.query, f.sort, f.searchIn, matches)
+        filterItems(
+            list,
+            feeds,
+            sc,
+            f.onlyUnread,
+            f.query,
+            f.sort,
+            f.searchIn,
+            matches,
+            f.keepRead,
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun selectScope(s: Scope) {
@@ -215,6 +235,7 @@ class ListViewModel(
     fun autoMarkRead(id: Long) {
         if (id in keepUnread || id in autoHandled) return
         autoHandled += id
+        readThisSession.update { it + id }
         viewModelScope.launch { runCatching { repository.setUnread(id, false) } }
         _itemDetails.update { map ->
             map[id]?.let { map + (id to it.copy(unread = false)) } ?: map
@@ -229,7 +250,12 @@ class ListViewModel(
 
     fun toggleRead(id: Long, unread: Boolean) {
         val target = !unread
-        if (target) keepUnread += id else keepUnread -= id
+        if (target) {
+            keepUnread += id
+        } else {
+            keepUnread -= id
+            readThisSession.update { it + id }
+        }
         viewModelScope.launch { repository.setUnread(id, target) }
         _itemDetails.update { map ->
             map[id]?.let { map + (id to it.copy(unread = target)) } ?: map
@@ -324,6 +350,9 @@ class ListViewModel(
                 // Network/API failures must not crash the app; the list keeps cached data.
                 println("OCNEWS sync failed: ${e.message}")
             } finally {
+                // After a refresh the articles read this session follow the
+                // filter again, so they leave the list.
+                readThisSession.value = emptySet()
                 // Keep the refresh animation on screen for a moment even when the
                 // server has nothing new, so the pull does not look ignored.
                 val elapsed = System.currentTimeMillis() - startedAt
