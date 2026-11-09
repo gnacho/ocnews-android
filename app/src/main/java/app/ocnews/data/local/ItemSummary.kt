@@ -34,6 +34,12 @@ fun ItemEntity.toSummary(): ItemSummary = ItemSummary(
     thumbnailUrl = thumbnailUrl,
 )
 
+// Row used to keep the offline full text when a sync replaces the item.
+data class ItemFullBody(
+    val id: Long,
+    val fullBody: String,
+)
+
 // Row used to backfill the thumbnail after a migration.
 data class ItemBodyRow(
     val id: Long,

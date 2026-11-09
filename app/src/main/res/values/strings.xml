@@ -22,6 +22,16 @@
     <string name="refresh">Refresh</string>
     <string name="download_articles">Download articles offline</string>
     <string name="download_images">Download images</string>
+    <string name="download_progress">Downloading %1$d of %2$d</string>
+    <string name="nothing_to_download">Nothing to download</string>
+    <plurals name="downloaded_articles">
+        <item quantity="one">%d article downloaded</item>
+        <item quantity="other">%d articles downloaded</item>
+    </plurals>
+    <plurals name="downloaded_images">
+        <item quantity="one">%d image downloaded</item>
+        <item quantity="other">%d images downloaded</item>
+    </plurals>
     <string name="mark_all_read">Mark all as read</string>
     <string name="logout_confirm_title">Log out?</string>
     <string name="logout_confirm_message">You will need to sign in again.</string>

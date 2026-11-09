@@ -7,6 +7,7 @@ import app.ocnews.data.local.FeedEntity
 import app.ocnews.data.local.FolderEntity
 import app.ocnews.data.local.ItemEntity
 import app.ocnews.data.local.ItemSummary
+import app.ocnews.data.repo.ImagePrefetcher
 import app.ocnews.data.repo.NewsRepository
 import app.ocnews.data.settings.SearchScope
 import app.ocnews.data.settings.SettingsStore
@@ -24,6 +25,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+enum class DownloadKind { ARTICLES, IMAGES }
+
+data class DownloadProgress(val kind: DownloadKind, val done: Int, val total: Int)
+
+data class DownloadFinished(val kind: DownloadKind, val count: Int)
 
 sealed interface Scope {
     data object All : Scope
@@ -73,12 +80,15 @@ fun filterItems(
 class ListViewModel(
     private val repository: NewsRepository,
     private val settingsStore: SettingsStore,
+    private val imagePrefetcher: ImagePrefetcher = ImagePrefetcher { },
 ) : ViewModel() {
     private val scope = MutableStateFlow<Scope>(Scope.All)
     private val _searchQuery = MutableStateFlow("")
     private val _fullContent = MutableStateFlow<Map<Long, String>>(emptyMap())
     private val _itemDetails = MutableStateFlow<Map<Long, ItemEntity>>(emptyMap())
     private val _syncing = MutableStateFlow(false)
+    private val _download = MutableStateFlow<DownloadProgress?>(null)
+    private val _finished = MutableStateFlow<DownloadFinished?>(null)
 
     private data class UiFilter(
         val onlyUnread: Boolean,
@@ -106,6 +116,8 @@ class ListViewModel(
     val fullContent: StateFlow<Map<Long, String>> = _fullContent
     val itemDetails: StateFlow<Map<Long, ItemEntity>> = _itemDetails
     val syncing: StateFlow<Boolean> = _syncing
+    val download: StateFlow<DownloadProgress?> = _download
+    val finished: StateFlow<DownloadFinished?> = _finished
 
     val folders: StateFlow<List<FolderEntity>> = repository.observeFolders()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -197,6 +209,53 @@ class ListViewModel(
         }
     }
 
+    // Downloads the server-side full text of every unread article, so it can be
+    // read offline. Runs one request at a time to keep the server happy.
+    fun downloadUnreadArticles() {
+        if (_download.value != null) return
+        viewModelScope.launch {
+            val ids = runCatching { repository.unreadIds() }.getOrDefault(emptyList())
+            if (ids.isEmpty()) {
+                _finished.value = DownloadFinished(DownloadKind.ARTICLES, 0)
+                return@launch
+            }
+            _download.value = DownloadProgress(DownloadKind.ARTICLES, 0, ids.size)
+            var done = 0
+            for (id in ids) {
+                runCatching { repository.fetchFullContent(id) }
+                done++
+                _download.value = DownloadProgress(DownloadKind.ARTICLES, done, ids.size)
+            }
+            _download.value = null
+            _finished.value = DownloadFinished(DownloadKind.ARTICLES, done)
+        }
+    }
+
+    // Prefetches the hero image of every unread article into the disk cache.
+    fun downloadUnreadImages() {
+        if (_download.value != null) return
+        viewModelScope.launch {
+            val urls = runCatching { repository.unreadImageUrls() }.getOrDefault(emptyList())
+            if (urls.isEmpty()) {
+                _finished.value = DownloadFinished(DownloadKind.IMAGES, 0)
+                return@launch
+            }
+            _download.value = DownloadProgress(DownloadKind.IMAGES, 0, urls.size)
+            var done = 0
+            for (url in urls) {
+                runCatching { imagePrefetcher.prefetch(url) }
+                done++
+                _download.value = DownloadProgress(DownloadKind.IMAGES, done, urls.size)
+            }
+            _download.value = null
+            _finished.value = DownloadFinished(DownloadKind.IMAGES, done)
+        }
+    }
+
+    fun clearFinished() {
+        _finished.value = null
+    }
+
     fun sync() {
         viewModelScope.launch {
             _syncing.value = true
@@ -226,11 +285,15 @@ class ListViewModel(
     }
 
     companion object {
-        fun factory(repository: NewsRepository, settingsStore: SettingsStore): ViewModelProvider.Factory =
+        fun factory(
+            repository: NewsRepository,
+            settingsStore: SettingsStore,
+            imagePrefetcher: ImagePrefetcher,
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    ListViewModel(repository, settingsStore) as T
+                    ListViewModel(repository, settingsStore, imagePrefetcher) as T
             }
     }
 }

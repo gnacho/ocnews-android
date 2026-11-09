@@ -28,6 +28,22 @@ interface ItemDao {
     @Query("SELECT * FROM item WHERE id = :id")
     suspend fun getById(id: Long): ItemEntity?
 
+    // Offline download helpers: unread scope only.
+    @Query("SELECT id FROM item WHERE unread = 1")
+    suspend fun getUnreadIds(): List<Long>
+
+    @Query(
+        "SELECT COALESCE(mediaThumbnail, thumbnailUrl) FROM item " +
+            "WHERE unread = 1 AND COALESCE(mediaThumbnail, thumbnailUrl, '') != ''"
+    )
+    suspend fun getUnreadImageUrls(): List<String>
+
+    @Query("UPDATE item SET fullBody = :body WHERE id = :id")
+    suspend fun setFullBody(id: Long, body: String?)
+
+    @Query("SELECT id, fullBody FROM item WHERE id IN (:ids) AND fullBody IS NOT NULL")
+    suspend fun getFullBodies(ids: List<Long>): List<ItemFullBody>
+
     // Full-text match in the body returns only ids, keeping HTML out of memory.
     @Query("SELECT id FROM item WHERE body LIKE '%' || :query || '%'")
     suspend fun searchBodyIds(query: String): List<Long>

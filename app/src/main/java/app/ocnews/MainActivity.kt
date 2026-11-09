@@ -39,12 +39,13 @@ class MainActivity : ComponentActivity() {
 
     private val repository get() = (application as OcnewsApplication).container.repository
     private val settingsStore get() = (application as OcnewsApplication).container.settingsStore
+    private val imagePrefetcher get() = (application as OcnewsApplication).container.imagePrefetcher
 
     private val loginViewModel: LoginViewModel by viewModels {
         LoginViewModel.factory(repository)
     }
     private val listViewModel: ListViewModel by viewModels {
-        ListViewModel.factory(repository, settingsStore)
+        ListViewModel.factory(repository, settingsStore, imagePrefetcher)
     }
     private val addFeedViewModel: AddFeedViewModel by viewModels {
         AddFeedViewModel.factory(repository)
@@ -140,6 +141,8 @@ class MainActivity : ComponentActivity() {
                         val searchQuery by listViewModel.searchQuery.collectAsStateWithLifecycle()
                         val fullContent by listViewModel.fullContent.collectAsStateWithLifecycle()
                         val itemDetails by listViewModel.itemDetails.collectAsStateWithLifecycle()
+                        val download by listViewModel.download.collectAsStateWithLifecycle()
+                        val finished by listViewModel.finished.collectAsStateWithLifecycle()
 
                         MainScreen(
                             folders = folders,
@@ -157,6 +160,11 @@ class MainActivity : ComponentActivity() {
                             onSearchQueryChange = listViewModel::setSearchQuery,
                             fullContent = fullContent,
                             itemDetails = itemDetails,
+                            download = download,
+                            finished = finished,
+                            onDownloadArticles = listViewModel::downloadUnreadArticles,
+                            onDownloadImages = listViewModel::downloadUnreadImages,
+                            onFinishedShown = listViewModel::clearFinished,
                             onFetchFull = listViewModel::fetchFullContent,
                             onLoadDetail = listViewModel::loadItemDetail,
                             addFeedViewModel = addFeedViewModel,

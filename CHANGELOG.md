@@ -4,6 +4,19 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.40] - 2026-11-09
+
+### Added
+
+- Download articles offline: fetches the full text of every unread article from the server and stores it locally, so articles can be read without a connection.
+- Download images: prefetches the hero image of every unread article into the disk cache.
+- Both actions live in the top bar menu, show progress while running and summarise what was downloaded when they finish.
+
+### Notes
+
+- The full text is kept when a later sync replaces the item.
+- Room schema v3 adds the fullBody column, migrated in place.
+
 ## [0.1.38] - 2026-11-09
 
 ### Fixed

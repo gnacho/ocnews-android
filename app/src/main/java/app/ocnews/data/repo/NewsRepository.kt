@@ -139,9 +139,19 @@ class NewsRepository(
     }
 
     // Fetches the full article text (backend readability extraction). Returns null on failure.
+    suspend fun unreadIds(): List<Long> = itemDao.getUnreadIds()
+
+    suspend fun unreadImageUrls(): List<String> = itemDao.getUnreadImageUrls()
+
+    suspend fun saveFullBody(itemId: Long, body: String?) = itemDao.setFullBody(itemId, body)
+
+    // Fetches the server-side full text (readability, cached by the server) and
+    // stores it locally, so the article is readable offline afterwards.
     suspend fun fetchFullContent(itemId: Long): String? {
         val api = currentApi() ?: return null
-        return api.itemFull(itemId).body.takeIf { it.isNotBlank() }
+        val body = api.itemFull(itemId).body.takeIf { it.isNotBlank() } ?: return null
+        itemDao.setFullBody(itemId, body)
+        return body
     }
 
     suspend fun createFolder(name: String) {

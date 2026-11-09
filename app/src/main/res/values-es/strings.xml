@@ -22,6 +22,16 @@
     <string name="refresh">Actualizar</string>
     <string name="download_articles">Descargar artículos sin conexión</string>
     <string name="download_images">Descargar imágenes</string>
+    <string name="download_progress">Descargando %1$d de %2$d</string>
+    <string name="nothing_to_download">No hay nada que descargar</string>
+    <plurals name="downloaded_articles">
+        <item quantity="one">%d artículo descargado</item>
+        <item quantity="other">%d artículos descargados</item>
+    </plurals>
+    <plurals name="downloaded_images">
+        <item quantity="one">%d imagen descargada</item>
+        <item quantity="other">%d imágenes descargadas</item>
+    </plurals>
     <string name="mark_all_read">Marcar todo como leído</string>
     <string name="logout_confirm_title">¿Cerrar sesión?</string>
     <string name="logout_confirm_message">Tendrás que iniciar sesión de nuevo.</string>

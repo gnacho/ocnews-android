@@ -145,11 +145,29 @@ class FakeItemDao : ItemDao {
     val setUnreadCalls = mutableListOf<Pair<Long, Boolean>>()
     val setStarredCalls = mutableListOf<Pair<Long, Boolean>>()
 
-    override suspend fun upsertAll(items: List<ItemEntity>) { this.items.addAll(items) }
+    // Mirrors the DAO's REPLACE strategy.
+    override suspend fun upsertAll(items: List<ItemEntity>) {
+        for (item in items) {
+            val idx = this.items.indexOfFirst { it.id == item.id }
+            if (idx >= 0) this.items[idx] = item else this.items.add(item)
+        }
+    }
     override fun getAllSummaries(): Flow<List<ItemSummary>> = emptyFlow()
     override fun getUnreadSummaries(): Flow<List<ItemSummary>> = emptyFlow()
     override fun getStarredSummaries(): Flow<List<ItemSummary>> = emptyFlow()
     override fun getByFeedSummaries(feedId: Long): Flow<List<ItemSummary>> = emptyFlow()
+    override suspend fun getUnreadIds(): List<Long> = items.filter { it.unread }.map { it.id }
+    override suspend fun getUnreadImageUrls(): List<String> =
+        items.filter { it.unread }
+            .mapNotNull { it.mediaThumbnail ?: it.thumbnailUrl }
+            .filter { it.isNotBlank() }
+    override suspend fun setFullBody(id: Long, body: String?) {
+        val idx = items.indexOfFirst { it.id == id }
+        if (idx >= 0) items[idx] = items[idx].copy(fullBody = body)
+    }
+    override suspend fun getFullBodies(ids: List<Long>): List<app.ocnews.data.local.ItemFullBody> =
+        items.filter { it.id in ids && it.fullBody != null }
+            .map { app.ocnews.data.local.ItemFullBody(it.id, it.fullBody!!) }
     override suspend fun searchBodyIds(query: String): List<Long> =
         items.filter { it.body.contains(query, ignoreCase = true) }.map { it.id }
     override suspend fun getItemsMissingThumbnail(limit: Int): List<ItemBodyRow> =
@@ -174,6 +192,13 @@ class FakeItemDao : ItemDao {
     override suspend fun clearUnreadPending(ids: List<Long>) { clearUnread.add(ids) }
     override suspend fun clearStarredPending(ids: List<Long>) { clearStarred.add(ids) }
     override suspend fun clear() { items.clear() }
+}
+
+class FakeImagePrefetcher : app.ocnews.data.repo.ImagePrefetcher {
+    val urls = mutableListOf<String>()
+    override suspend fun prefetch(url: String) {
+        urls.add(url)
+    }
 }
 
 class FakeFolderDao : FolderDao {

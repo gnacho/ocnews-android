@@ -29,6 +29,8 @@ data class ItemEntity(
     // First image URL extracted from the body at sync time, so list queries
     // never need to load the (large) body column.
     val thumbnailUrl: String? = null,
+    // Full article text fetched from the server for offline reading (readability).
+    val fullBody: String? = null,
     val feedId: Long,
     val unread: Boolean,
     val starred: Boolean,
