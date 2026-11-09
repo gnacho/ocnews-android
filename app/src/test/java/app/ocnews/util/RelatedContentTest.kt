@@ -1,5 +1,6 @@
 package app.ocnews.util
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -75,21 +76,58 @@ class RelatedContentTest {
 
     @Test
     fun `a short block that is almost entirely a link is boilerplate`() {
-        assertTrue(isLinkHeavyBlock("""<p>En Xataka | <a href="https://x.com/a">La luna estaría compuesta por un fragmento de la Tierra</a></p>"""))
-        assertTrue(isLinkHeavyBlock("""<p><a href="https://x.com/a">Título de otro artículo</a></p>"""))
-        assertTrue(isLinkHeavyBlock("""<p>Imagen | <a href="https://x.com/a">Grebenkov</a></p>"""))
+        assertTrue(isCardBlock("""<p>En Xataka | <a href="https://x.com/a">La luna estaría compuesta por un fragmento de la Tierra</a></p>"""))
+        assertTrue(isCardBlock("""<p><a href="https://x.com/a">Título de otro artículo</a></p>"""))
+        assertTrue(isCardBlock("""<p>Imagen | <a href="https://x.com/a">Grebenkov</a></p>"""))
+    }
+
+    @Test
+    fun `a card without a pipe between label and title is boilerplate`() {
+        // Xataka also emits cards as "<a>En Xataka</a><a>Title</a>", no separator.
+        assertTrue(
+            isCardBlock(
+                """<a href="https://x.com/a">En Xataka</a>
+                   <a href="https://x.com/a">Ya es oficial: Elon Musk anuncia el principio del fin del Cybertruck</a>"""
+            )
+        )
     }
 
     @Test
     fun `prose with links is not boilerplate`() {
         assertFalse(
-            isLinkHeavyBlock(
+            isCardBlock(
                 """<p>Las <a href="https://x.com/a">aspiradoras Dyson</a> son de las más demandadas por quienes quieren un dispositivo de limpieza para su hogar con buena calidad y a buen precio.</p>"""
             )
         )
-        assertFalse(isLinkHeavyBlock("""<p>Texto sin enlaces de ningún tipo.</p>"""))
+        assertFalse(isCardBlock("""<p>Texto sin enlaces de ningún tipo.</p>"""))
+        // A real sentence that happens to contain a link keeps text outside it.
+        assertFalse(
+            isCardBlock("""<p>Y eso es un problema en la <a href="https://x.com/a">gran huerta de cítricos de la UE</a>.</p>""")
+        )
         // Long link lists are ignored by length, and prose is kept.
-        assertFalse(isLinkHeavyBlock("""<p><a href="https://x.com/a">""" + "palabra ".repeat(60) + """</a></p>"""))
+        assertFalse(isCardBlock("""<p><a href="https://x.com/a">""" + "palabra ".repeat(60) + """</a></p>"""))
+    }
+
+    @Test
+    fun `a card glued to the next paragraph loses the card but keeps the prose`() {
+        val html =
+            """<p><a href="https://x.com/a"><img src="https://cdn/t.jpg"></a><a href="https://x.com/a">En Xataka</a><a href="https://x.com/a">Ya es oficial: Elon Musk anuncia el principio del fin del Cybertruck</a>El despliegue. Latinoamérica es la primera.</p>"""
+        val cleaned = stripCardLinkRuns(html)
+        assertFalse(cleaned.contains("Elon Musk"))
+        assertFalse(cleaned.contains("En Xataka"))
+        assertTrue(cleaned.contains("El despliegue. Latinoamérica es la primera."))
+    }
+
+    @Test
+    fun `an inline image wrapped in a link is kept`() {
+        val html = """<p><a href="https://x.com/foto"><img src="https://cdn/foto.jpg"></a></p><p>Texto del artículo.</p>"""
+        assertEquals(html, stripCardLinkRuns(html))
+    }
+
+    @Test
+    fun `prose with links is untouched by the card stripper`() {
+        val html = """<p>Las <a href="https://x.com/a">aspiradoras Dyson</a> son las más demandadas del mercado.</p>"""
+        assertEquals(html, stripCardLinkRuns(html))
     }
 
     @Test

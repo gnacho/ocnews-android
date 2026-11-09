@@ -118,7 +118,8 @@ import app.ocnews.ui.addfeed.AddFeedDialog
 import app.ocnews.ui.addfeed.AddFeedViewModel
 import app.ocnews.util.firstImageUrl
 import app.ocnews.util.isRelatedHeading
-import app.ocnews.util.isLinkHeavyBlock
+import app.ocnews.util.isCardBlock
+import app.ocnews.util.stripCardLinkRuns
 import app.ocnews.util.isRelatedLink
 import app.ocnews.util.format
 import app.ocnews.util.relativeTime
@@ -1053,14 +1054,17 @@ private fun ReaderPage(
 private fun Char.isVisibleChar(): Boolean = !isWhitespace() && this != '\u00A0'
 
 private sealed interface ReaderBlock {
-    // linkHeavy blocks are boilerplate: short and almost entirely a link.
-    data class Text(val content: AnnotatedString, val linkHeavy: Boolean = false) : ReaderBlock
+    // card blocks are boilerplate: a label plus a link, whatever the wording.
+    data class Text(val content: AnnotatedString, val card: Boolean = false) : ReaderBlock
     data class Image(val url: String) : ReaderBlock
 }
 
 // Turns the article HTML into text and image blocks in document order, so the
 // images are rendered where the article places them.
 private fun htmlToBlocks(html: String, linkColor: Color, hideRelated: Boolean): List<ReaderBlock> {
+    // Cards are removed from the HTML first: they come glued to the next
+    // paragraph, so block-level filtering cannot see them whole.
+    val source = if (hideRelated) stripCardLinkRuns(html) else html
     val imgTag = Regex("""<img[^>]*>""", RegexOption.IGNORE_CASE)
     val srcAttr = Regex("""src\s*=\s*[\"']([^\"']+)[\"']""", RegexOption.IGNORE_CASE)
     val result = mutableListOf<ReaderBlock>()
@@ -1076,20 +1080,20 @@ private fun htmlToBlocks(html: String, linkColor: Color, hideRelated: Boolean): 
             result.add(
                 ReaderBlock.Text(
                     content = text.subSequence(start, end + 1),
-                    linkHeavy = isLinkHeavyBlock(part),
+                    card = isCardBlock(part),
                 )
             )
         }
     }
 
     var cursor = 0
-    for (match in imgTag.findAll(html)) {
-        if (match.range.first > cursor) addText(html.substring(cursor, match.range.first))
+    for (match in imgTag.findAll(source)) {
+        if (match.range.first > cursor) addText(source.substring(cursor, match.range.first))
         val src = srcAttr.find(match.value)?.groupValues?.getOrNull(1)
         if (!src.isNullOrBlank()) result.add(ReaderBlock.Image(unpackImageUrl(src)))
         cursor = match.range.last + 1
     }
-    if (cursor < html.length) addText(html.substring(cursor))
+    if (cursor < source.length) addText(source.substring(cursor))
     if (!hideRelated) return result
     // Sites append a "you may also like" block at the end; drop the heading and
     // everything after it.
@@ -1097,14 +1101,11 @@ private fun htmlToBlocks(html: String, linkColor: Color, hideRelated: Boolean): 
         block is ReaderBlock.Text && isRelatedHeading(block.content.text)
     }
     val kept = if (cut >= 0) result.subList(0, cut) else result
-    val trailingStart = (kept.size * 0.6f).toInt()
-    return kept.filterIndexed { index, block ->
-        if (block !is ReaderBlock.Text) return@filterIndexed true
-        // Single-line cross references such as "En Xataka | <other article>".
-        if (isRelatedLink(block.content.text)) return@filterIndexed false
-        // And any trailing block that is basically a link (cards, tag lists),
-        // whatever the site calls it.
-        !(index >= trailingStart && block.linkHeavy)
+    return kept.filterNot { block ->
+        block is ReaderBlock.Text &&
+            // Single-line cross references such as "En Xataka | <other article>",
+            // and cards (label plus link) wherever the site places them.
+            (isRelatedLink(block.content.text) || block.card)
     }
 }
 
