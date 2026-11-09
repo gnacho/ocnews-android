@@ -4,6 +4,17 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.50] - 2026-11-09
+
+### Changed
+
+- Opening an article marks it read, and the reader keeps its own copy of the list, so marking an article read or unread no longer switches to another article or closes the reader.
+- An article the user marks unread stays unread while swiping through the reader; opening it again from the list marks it read again.
+
+### Fixed
+
+- Cross-reference lines such as "En Xataka | <another article>" are now dropped by the related-content filter.
+
 ## [0.1.48] - 2026-11-09
 
 ### Added

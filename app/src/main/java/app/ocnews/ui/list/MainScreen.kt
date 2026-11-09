@@ -118,6 +118,7 @@ import app.ocnews.ui.addfeed.AddFeedDialog
 import app.ocnews.ui.addfeed.AddFeedViewModel
 import app.ocnews.util.firstImageUrl
 import app.ocnews.util.isRelatedHeading
+import app.ocnews.util.isRelatedLink
 import app.ocnews.util.format
 import app.ocnews.util.relativeTime
 import app.ocnews.util.unpackImageUrl
@@ -156,6 +157,8 @@ fun MainScreen(
     onDownloadArticles: () -> Unit,
     onDownloadImages: () -> Unit,
     onFinishedShown: () -> Unit,
+    onAutoRead: (Long) -> Unit,
+    onReaderClosed: () -> Unit,
     onFetchFull: (Long) -> Unit,
     onLoadDetail: (Long) -> Unit,
     addFeedViewModel: AddFeedViewModel,
@@ -169,6 +172,9 @@ fun MainScreen(
     onOpenSettings: () -> Unit,
 ) {
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    // Snapshot of the list taken when the reader opens: toggling read/starred
+    // changes the filtered list behind, and the reader must not jump or close.
+    var readerItems by remember { mutableStateOf<List<ItemSummary>?>(null) }
     var showAddFeed by remember { mutableStateOf(false) }
     var searchActive by remember { mutableStateOf(false) }
     var profileMenuOpen by remember { mutableStateOf(false) }
@@ -254,8 +260,9 @@ fun MainScreen(
             }
         },
     ) {
-        val current = selectedIndex?.let { items.getOrNull(it) }
-        if (current == null) {
+        val readerList = readerItems
+        val current = selectedIndex?.let { readerList?.getOrNull(it) }
+        if (current == null || readerList == null) {
             Scaffold(
                 topBar = {
                     TopAppBar(
@@ -407,6 +414,7 @@ fun MainScreen(
                         onToggleRead = onToggleRead,
                         onToggleStarred = onToggleStarred,
                         onItemClick = { item ->
+                            readerItems = items
                             selectedIndex = items.indexOfFirst { it.id == item.id }.takeIf { it >= 0 }
                         },
                     )
@@ -415,7 +423,7 @@ fun MainScreen(
             }
         } else {
             Reader(
-                items = items,
+                items = readerList,
                 initialIndex = selectedIndex ?: 0,
                 feeds = feeds,
                 serverUrl = serverUrl,
@@ -424,9 +432,14 @@ fun MainScreen(
                 itemDetails = itemDetails,
                 navigateWithVolume = navigateWithVolume,
                 hideRelated = hideRelated,
+                onAutoRead = onAutoRead,
                 onLoadDetail = onLoadDetail,
                 onFetchFull = onFetchFull,
-                onBack = { selectedIndex = null },
+                onBack = {
+                    readerItems = null
+                    selectedIndex = null
+                    onReaderClosed()
+                },
                 onToggleRead = onToggleRead,
                 onToggleStarred = onToggleStarred,
             )
@@ -729,6 +742,7 @@ private fun Reader(
     itemDetails: Map<Long, ItemEntity>,
     navigateWithVolume: Boolean,
     hideRelated: Boolean,
+    onAutoRead: (Long) -> Unit,
     onLoadDetail: (Long) -> Unit,
     onFetchFull: (Long) -> Unit,
     onBack: () -> Unit,
@@ -742,6 +756,8 @@ private fun Reader(
     }
     val pagerState = rememberPagerState(initialPage = initialIndex.coerceIn(0, items.lastIndex)) { items.size }
     val current = items.getOrNull(pagerState.currentPage) ?: items.first()
+    // Opening an article marks it read, unless the user chose to keep it unread.
+    LaunchedEffect(current.id) { onAutoRead(current.id) }
     val currentDetail = itemDetails[current.id]
     val feedTitle = feeds.firstOrNull { it.id == current.feedId }?.title
 
@@ -1068,11 +1084,16 @@ private fun htmlToBlocks(html: String, linkColor: Color, hideRelated: Boolean): 
     }
     if (cursor < html.length) addText(html.substring(cursor))
     if (!hideRelated) return result
-    // Sites append a "you may also like" block at the end; drop it and what follows.
+    // Sites append a "you may also like" block at the end; drop the heading and
+    // everything after it.
     val cut = result.indexOfFirst { block ->
         block is ReaderBlock.Text && isRelatedHeading(block.content.text)
     }
-    return if (cut >= 0) result.subList(0, cut).toList() else result
+    val kept = if (cut >= 0) result.subList(0, cut) else result
+    // And single-line cross references such as "En Xataka | <other article>".
+    return kept.filterNot { block ->
+        block is ReaderBlock.Text && isRelatedLink(block.content.text)
+    }
 }
 
 // Splits an article body on block-level closing tags so each paragraph can be

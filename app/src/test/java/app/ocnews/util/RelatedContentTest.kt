@@ -32,6 +32,28 @@ class RelatedContentTest {
     }
 
     @Test
+    fun `cross references to other articles match`() {
+        assertTrue(
+            isRelatedLink(
+                "En Xataka | La luna estaría compuesta por un fragmento de la Tierra que se desprendió " +
+                    "hace miles de millones de años"
+            )
+        )
+        assertTrue(isRelatedLink("En Xataka Móvil | Lo nuevo de Braun te da información"))
+    }
+
+    @Test
+    fun `a normal sentence starting with En does not match`() {
+        assertFalse(isRelatedLink("En Xataka hemos hablado muchas veces de este tema."))
+        assertFalse(isRelatedLink("En 2026 el mercado cambió por completo."))
+        assertFalse(
+            isRelatedLink(
+                "En Xataka | " + "un título larguísimo ".repeat(30)
+            )
+        )
+    }
+
+    @Test
     fun `unrelated text does not match`() {
         assertFalse(isRelatedHeading("El Gobierno lleva a TikTok ante la Fiscalía"))
         assertFalse(isRelatedHeading(""))

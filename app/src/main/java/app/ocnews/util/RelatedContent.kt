@@ -33,3 +33,12 @@ fun isRelatedHeading(text: String): Boolean {
     if (normalized.isEmpty() || normalized.length > 60) return false
     return relatedHeadings.any { normalized.startsWith(it) }
 }
+
+// Single-line cross references such as "En Xataka | Another article title",
+// which the same publisher appends to the end of its articles.
+fun isRelatedLink(text: String): Boolean {
+    val normalized = normalizeForMatch(text)
+    if (normalized.isEmpty() || normalized.length > 300) return false
+    if (!normalized.startsWith("en ")) return false
+    return normalized.contains(" | ")
+}
