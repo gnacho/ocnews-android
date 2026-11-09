@@ -4,6 +4,17 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.46] - 2026-11-09
+
+### Changed
+
+- Smaller reader title and tighter line spacing.
+
+### Fixed
+
+- Images that belong inside the article are rendered again, in the order the article places them, instead of being dropped.
+- No more blank gaps between paragraphs: empty paragraphs and the newlines the HTML parser adds are trimmed.
+
 ## [0.1.44] - 2026-11-09
 
 ### Added

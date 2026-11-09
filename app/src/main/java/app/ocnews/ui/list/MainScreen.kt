@@ -930,15 +930,12 @@ private fun ReaderPage(
 ) {
     val context = LocalContext.current
     val linkColor = MaterialTheme.colorScheme.primary
-    // Split the article into blocks so a huge body is laid out lazily instead of
-    // measuring a single Text of tens of thousands of characters.
-    val blocks = remember(body) { body?.let { splitHtmlBlocks(it) } }
+    // The body becomes a list of text and image blocks, in document order, so it
+    // is laid out lazily and the images stay where the article puts them.
     // Parsing HTML takes hundreds of milliseconds, so keep it off the main thread.
-    val paragraphs by produceState<List<AnnotatedString>?>(initialValue = null, blocks, linkColor) {
-        value = blocks?.let { list ->
-            withContext(Dispatchers.Default) {
-                list.map { htmlToAnnotated(stripImages(it), linkColor) }.filter { it.isNotEmpty() }
-            }
+    val blocks by produceState<List<ReaderBlock>?>(initialValue = null, body, linkColor) {
+        value = body?.let { html ->
+            withContext(Dispatchers.Default) { htmlToBlocks(html, linkColor) }
         }
     }
     LazyColumn(
@@ -949,7 +946,7 @@ private fun ReaderPage(
             Column {
                 Text(
                     text = item.title,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 21.sp, lineHeight = 26.sp),
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -981,7 +978,7 @@ private fun ReaderPage(
                         maxLines = 1,
                     )
                 }
-                item.imageUrl?.let { heroUrl ->
+                item.mediaThumbnail?.let { heroUrl ->
                     Spacer(Modifier.height(12.dp))
                     AsyncImage(
                         model = heroUrl,
@@ -996,22 +993,70 @@ private fun ReaderPage(
                 Spacer(Modifier.height(16.dp))
             }
         }
-        val ready = paragraphs
+        val ready = blocks
         when {
             ready == null && body != null -> item {
                 CircularProgressIndicator(Modifier.padding(top = 8.dp))
             }
             ready != null -> items(ready.size) { index ->
-                Text(
-                    text = ready[index],
-                    style = MaterialTheme.typography.bodyLarge,
-                    lineHeight = 26.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
+                when (val block = ready[index]) {
+                    is ReaderBlock.Text -> Text(
+                        text = block.content,
+                        style = MaterialTheme.typography.bodyLarge,
+                        lineHeight = 24.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    is ReaderBlock.Image -> AsyncImage(
+                        model = block.url,
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 10.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                    )
+                }
             }
         }
     }
+}
+
+private fun Char.isVisibleChar(): Boolean = !isWhitespace() && this != '\u00A0'
+
+private sealed interface ReaderBlock {
+    data class Text(val content: AnnotatedString) : ReaderBlock
+    data class Image(val url: String) : ReaderBlock
+}
+
+// Turns the article HTML into text and image blocks in document order, so the
+// images are rendered where the article places them.
+private fun htmlToBlocks(html: String, linkColor: Color): List<ReaderBlock> {
+    val imgTag = Regex("""<img[^>]*>""", RegexOption.IGNORE_CASE)
+    val srcAttr = Regex("""src\s*=\s*[\"']([^\"']+)[\"']""", RegexOption.IGNORE_CASE)
+    val result = mutableListOf<ReaderBlock>()
+
+    fun addText(chunk: String) {
+        for (part in splitHtmlBlocks(chunk)) {
+            val text = htmlToAnnotated(part, linkColor)
+            // Html.fromHtml pads blocks with newlines and empty paragraphs come as
+            // &nbsp;, so trim the visible range to avoid blank gaps.
+            val start = text.indexOfFirst { it.isVisibleChar() }
+            if (start < 0) continue
+            val end = text.indexOfLast { it.isVisibleChar() }
+            result.add(ReaderBlock.Text(text.subSequence(start, end + 1)))
+        }
+    }
+
+    var cursor = 0
+    for (match in imgTag.findAll(html)) {
+        if (match.range.first > cursor) addText(html.substring(cursor, match.range.first))
+        val src = srcAttr.find(match.value)?.groupValues?.getOrNull(1)
+        if (!src.isNullOrBlank()) result.add(ReaderBlock.Image(unpackImageUrl(src)))
+        cursor = match.range.last + 1
+    }
+    if (cursor < html.length) addText(html.substring(cursor))
+    return result
 }
 
 // Splits an article body on block-level closing tags so each paragraph can be
@@ -1022,8 +1067,8 @@ private fun splitHtmlBlocks(html: String): List<String> {
     return marked.split("\u0000").map { it.trim() }.filter { it.isNotEmpty() }
 }
 
-// Converts a (image-stripped) HTML body into a Compose AnnotatedString keeping bold,
-// italic and links.
+// Converts a HTML fragment into a Compose AnnotatedString keeping bold, italic,
+// underline and links; images are handled separately as ReaderBlock.Image.
 private fun htmlToAnnotated(html: String, linkColor: Color): AnnotatedString {
     val spanned = android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY)
     return buildAnnotatedString {
@@ -1053,9 +1098,6 @@ private fun htmlToAnnotated(html: String, linkColor: Color): AnnotatedString {
         }
     }
 }
-
-private fun stripImages(html: String): String =
-    Regex("""<img[^>]*>""", RegexOption.IGNORE_CASE).replace(html, "")
 
 @Composable
 private fun FloatingActions(
