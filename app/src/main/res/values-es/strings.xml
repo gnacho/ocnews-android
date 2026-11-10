@@ -53,6 +53,7 @@
     <string name="open_browser_again">Abrir de nuevo en el navegador</string>
     <string name="copy_link">Copiar enlace</string>
     <string name="link_copied">Enlace copiado. Ábrelo en cualquier navegador y termina allí.</string>
+    <string name="checking_server">Comprobando el servidor…</string>
     <string name="settings">Ajustes</string>
     <string name="about">Acerca de</string>
     <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>

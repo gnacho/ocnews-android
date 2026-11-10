@@ -29,6 +29,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import app.ocnews.BuildConfig
 import app.ocnews.R
 
 @Composable
@@ -152,7 +153,11 @@ fun LoginScreen(
             if (state.browserLoginWaiting) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = stringResource(R.string.waiting_browser),
+                    text = if (state.browserLoginUrl != null) {
+                        stringResource(R.string.waiting_browser)
+                    } else {
+                        stringResource(R.string.checking_server)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -190,6 +195,12 @@ fun LoginScreen(
                 else stringResource(R.string.sign_in)
             )
         }
+        Text(
+            text = "ocnews ${BuildConfig.VERSION_NAME}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 16.dp),
+        )
     }
     }
 }
