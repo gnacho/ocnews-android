@@ -35,6 +35,10 @@
     <string name="save">Guardar</string>
     <string name="feed_settings">Ajustes del feed</string>
     <string name="video_playback_failed">No se pudo reproducir aquí. Toca para abrirlo fuera.</string>
+    <string name="section_account">Cuenta</string>
+    <string name="server_url_label">Servidor</string>
+    <string name="username_label">Usuario</string>
+    <string name="full_text_failed">El servidor no devolvió el texto completo. Puede que este servidor no lo permita.</string>
     <string name="settings">Ajustes</string>
     <string name="about">Acerca de</string>
     <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>

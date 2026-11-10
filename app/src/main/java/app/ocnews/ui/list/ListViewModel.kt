@@ -102,6 +102,8 @@ class ListViewModel(
     private val scope = MutableStateFlow<Scope>(Scope.All)
     private val _searchQuery = MutableStateFlow("")
     private val _fullContent = MutableStateFlow<Map<Long, String>>(emptyMap())
+    // True when the server could not provide the full text (Nextcloud has no such endpoint).
+    private val _fullTextFailed = MutableStateFlow(false)
     private val _itemDetails = MutableStateFlow<Map<Long, ItemEntity>>(emptyMap())
     private val _syncing = MutableStateFlow(false)
     private val _download = MutableStateFlow<DownloadProgress?>(null)
@@ -138,6 +140,7 @@ class ListViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val searchQuery: StateFlow<String> = _searchQuery
     val fullContent: StateFlow<Map<Long, String>> = _fullContent
+    val fullTextFailed: StateFlow<Boolean> = _fullTextFailed
     // Feeds configured to fetch the server-side full text when an article opens.
     val fullTextFeedIds: StateFlow<Set<Long>> = settingsStore.settings
         .map { it.fullTextFeedIds }
@@ -216,13 +219,21 @@ class ListViewModel(
     fun fetchFullContent(itemId: Long) {
         viewModelScope.launch {
             try {
-                repository.fetchFullContent(itemId)?.let { body ->
+                val body = repository.fetchFullContent(itemId)
+                if (body != null) {
                     _fullContent.update { it + (itemId to body) }
+                } else {
+                    _fullTextFailed.value = true
                 }
             } catch (e: Exception) {
                 println("OCNEWS fetch full failed: ${e.message}")
+                _fullTextFailed.value = true
             }
         }
+    }
+
+    fun clearFullTextFailed() {
+        _fullTextFailed.value = false
     }
 
     // Loads the full row (with body) for the reader, once per article.

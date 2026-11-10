@@ -145,6 +145,9 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             addFeedViewModel = addFeedViewModel,
+                            serverUrl = currentSession.serverUrl,
+                            username = currentSession.username,
+                            onLogout = { lifecycleScope.launch { repository.logout() } },
                             onClearCache = {
                                 lifecycleScope.launch {
                                     runCatching { repository.clearOfflineCache() }
@@ -173,6 +176,7 @@ class MainActivity : ComponentActivity() {
                         val pendingImageDownload by
                             listViewModel.pendingImageDownload.collectAsStateWithLifecycle()
                         val fullTextFeedIds by listViewModel.fullTextFeedIds.collectAsStateWithLifecycle()
+                        val fullTextFailed by listViewModel.fullTextFailed.collectAsStateWithLifecycle()
 
                         MainScreen(
                             folders = folders,
@@ -202,6 +206,8 @@ class MainActivity : ComponentActivity() {
                             onFinishedShown = listViewModel::clearFinished,
                             onAutoRead = listViewModel::autoMarkRead,
                             onReaderClosed = listViewModel::resetReaderSession,
+                            fullTextFailed = fullTextFailed,
+                            onFullTextFailedShown = listViewModel::clearFullTextFailed,
                             fullTextFeedIds = fullTextFeedIds,
                             onSaveFeedSettings = listViewModel::saveFeedSettings,
                             onFetchFull = listViewModel::fetchFullContent,

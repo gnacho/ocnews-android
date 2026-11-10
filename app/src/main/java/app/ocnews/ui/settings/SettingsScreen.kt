@@ -119,6 +119,9 @@ fun SettingsScreen(
     onCreateFolder: (String) -> Unit,
     addFeedViewModel: AddFeedViewModel,
     onClearCache: () -> Unit,
+    serverUrl: String,
+    username: String,
+    onLogout: () -> Unit,
     onBack: () -> Unit,
 ) {
     // Back returns to the list instead of closing the app.
@@ -128,6 +131,26 @@ fun SettingsScreen(
     var showAddFeed by remember { mutableStateOf(false) }
     var showNewFolder by remember { mutableStateOf(false) }
     var folderName by remember { mutableStateOf("") }
+    var showLogout by remember { mutableStateOf(false) }
+
+    if (showLogout) {
+        AlertDialog(
+            onDismissRequest = { showLogout = false },
+            title = { Text(stringResource(R.string.logout_confirm_title)) },
+            text = { Text(stringResource(R.string.logout_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLogout = false
+                    onLogout()
+                }) { Text(stringResource(R.string.log_out)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogout = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 
     if (showAddFeed) {
         AddFeedDialog(viewModel = addFeedViewModel, onDismiss = { showAddFeed = false })
@@ -229,6 +252,13 @@ fun SettingsScreen(
                 viewModel::setMaxCacheSizeMb,
             )
             ActionRow(R.string.clear_cache) { onClearCache() }
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+
+            SectionHeader(R.string.section_account)
+            InfoRow(R.string.server_url_label, serverUrl)
+            InfoRow(R.string.username_label, username)
+            ActionRow(R.string.log_out) { showLogout = true }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
