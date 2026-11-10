@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +40,7 @@ fun LoginScreen(
     onLogin: () -> Unit,
     onBrowserLogin: () -> Unit,
     onOpenBrowser: (String) -> Unit,
+    onCopyToClipboard: (String) -> Unit,
 ) {
     var provider by remember { mutableStateOf(ServerProvider.OPENCLOUD) }
     val passwordLabel = when (provider) {
@@ -153,6 +155,19 @@ fun LoginScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Some phones block launching the browser from another app, so
+                // leave both a retry and a way to take the link elsewhere.
+                val link = state.browserLoginUrl
+                if (link != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { onOpenBrowser(link) }) {
+                            Text(stringResource(R.string.open_browser_again))
+                        }
+                        TextButton(onClick = { onCopyToClipboard(link) }) {
+                            Text(stringResource(R.string.copy_link))
+                        }
+                    }
+                }
             }
             state.browserLoginUrl?.let { url ->
                 LaunchedEffect(url) { onOpenBrowser(url) }

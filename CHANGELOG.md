@@ -4,6 +4,13 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.90] - 2026-11-10
+
+### Added
+
+- While the Nextcloud browser sign in is waiting, the screen offers "Open in the browser again" and "Copy link", so the login can be finished in any browser when the phone blocks launching it.
+- The browser intent asks for a new task, which helps on systems that restrict background activity launches.
+
 ## [0.1.88] - 2026-11-10
 
 ### Changed

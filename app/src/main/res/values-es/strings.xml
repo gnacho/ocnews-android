@@ -50,6 +50,9 @@
     <string name="waiting_browser">Esperando a que autorices en el navegador…</string>
     <string name="browser_unavailable">No hay navegador disponible. El enlace de acceso se ha copiado al portapapeles.</string>
     <string name="err_server_not_found">No hay ningún Nextcloud ni OpenCloud en esa dirección. Revisa la URL.</string>
+    <string name="open_browser_again">Abrir de nuevo en el navegador</string>
+    <string name="copy_link">Copiar enlace</string>
+    <string name="link_copied">Enlace copiado. Ábrelo en cualquier navegador y termina allí.</string>
     <string name="settings">Ajustes</string>
     <string name="about">Acerca de</string>
     <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>
