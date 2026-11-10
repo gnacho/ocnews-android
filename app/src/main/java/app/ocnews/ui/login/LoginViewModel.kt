@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.ocnews.data.remote.NextcloudLoginFlow
+import app.ocnews.data.remote.ServerChecker
+import app.ocnews.data.remote.ServerProbe
 import app.ocnews.data.repo.NewsRepository
 import app.ocnews.data.repo.NewsRepository.LoginResult
 import app.ocnews.R
@@ -32,6 +34,7 @@ data class LoginUiState(
 class LoginViewModel(
     private val repository: NewsRepository,
     private val loginFlow: NextcloudLoginFlow = NextcloudLoginFlow(),
+    private val serverProbe: ServerChecker = ServerProbe(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(LoginUiState())
     val state: StateFlow<LoginUiState> = _state
@@ -44,8 +47,24 @@ class LoginViewModel(
         val s = _state.value
         if (s.loading) return
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, errorRes = null, errorArgs = emptyList()) }
-            performLogin(normalizeServerUrl(s.serverUrl), s.username.trim(), s.token.trim())
+            _state.update {
+                it.copy(loading = true, errorRes = null, errorArgs = emptyList(), detail = null)
+            }
+            val server = normalizeServerUrl(s.serverUrl)
+            when (val probe = serverProbe.check(server)) {
+                is ServerProbe.Result.Failed -> {
+                    _state.update {
+                        it.copy(
+                            loading = false,
+                            errorRes = R.string.err_server_not_found,
+                            detail = probe.detail,
+                        )
+                    }
+                    return@launch
+                }
+                is ServerProbe.Result.Ok -> Unit
+            }
+            performLogin(server, s.username.trim(), s.token.trim())
         }
     }
 
@@ -60,7 +79,25 @@ class LoginViewModel(
         }
         viewModelScope.launch {
             _state.update {
-                it.copy(browserLoginWaiting = true, errorRes = null, errorArgs = emptyList())
+                it.copy(
+                    browserLoginWaiting = true,
+                    errorRes = null,
+                    errorArgs = emptyList(),
+                    detail = null,
+                )
+            }
+            when (val probe = serverProbe.check(server)) {
+                is ServerProbe.Result.Failed -> {
+                    _state.update {
+                        it.copy(
+                            browserLoginWaiting = false,
+                            errorRes = R.string.err_server_not_found,
+                            detail = probe.detail,
+                        )
+                    }
+                    return@launch
+                }
+                is ServerProbe.Result.Ok -> Unit
             }
             val started = runCatching { loginFlow.start(server) }
             val start = started.getOrNull()
