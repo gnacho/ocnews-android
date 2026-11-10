@@ -4,6 +4,13 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.74] - 2026-11-10
+
+### Added
+
+- Videos play inline in the reader with Media3 ExoPlayer: tap the card and it plays with the usual controls, without leaving the app.
+- If the device cannot decode the video, the card says so and tapping opens it outside.
+
 ## [0.1.72] - 2026-11-10
 
 ### Added
