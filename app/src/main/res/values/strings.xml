@@ -46,6 +46,8 @@
     <string name="app_password_hint">Nextcloud → Settings → Security → App passwords</string>
     <string name="app_token_hint">OpenCloud → Account → Security → App passwords</string>
     <string name="server_url_hint">your-server.com (https is assumed)</string>
+    <string name="sign_in_with_browser">Sign in with the browser</string>
+    <string name="waiting_browser">Waiting for you to authorise in the browser…</string>
     <string name="settings">Settings</string>
     <string name="about">About</string>
     <string name="about_text">ocnews %1$s\nRSS reader for OpenCloud.</string>

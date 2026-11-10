@@ -12,9 +12,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +37,8 @@ fun LoginScreen(
     onUsernameChange: (String) -> Unit,
     onTokenChange: (String) -> Unit,
     onLogin: () -> Unit,
+    onBrowserLogin: () -> Unit,
+    onOpenBrowser: (String) -> Unit,
 ) {
     var provider by remember { mutableStateOf(ServerProvider.OPENCLOUD) }
     val passwordLabel = when (provider) {
@@ -44,6 +49,10 @@ fun LoginScreen(
         ServerProvider.OPENCLOUD -> R.string.app_token_hint
         ServerProvider.NEXTCLOUD -> R.string.app_password_hint
     }
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -119,6 +128,29 @@ fun LoginScreen(
             )
         }
         Spacer(Modifier.height(16.dp))
+        // Nextcloud: authorise in the browser instead of pasting an app password.
+        if (provider == ServerProvider.NEXTCLOUD) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onBrowserLogin,
+                enabled = !state.loading && !state.browserLoginWaiting,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.sign_in_with_browser))
+            }
+            if (state.browserLoginWaiting) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.waiting_browser),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            state.browserLoginUrl?.let { url ->
+                LaunchedEffect(url) { onOpenBrowser(url) }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
         Button(
             onClick = onLogin,
             enabled = !state.loading,
@@ -129,6 +161,7 @@ fun LoginScreen(
                 else stringResource(R.string.sign_in)
             )
         }
+    }
     }
 }
 

@@ -4,6 +4,16 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.82] - 2026-11-10
+
+### Added
+
+- Nextcloud sign in through the browser (login flow v2): the app asks the server for a login URL, opens it in the browser, and receives the app password when you authorise it. No need to create and paste one by hand.
+
+### Fixed
+
+- The login screen had no themed surface, so with the dark theme the text was light over the window background and almost unreadable.
+
 ## [0.1.80] - 2026-11-10
 
 ### Changed
