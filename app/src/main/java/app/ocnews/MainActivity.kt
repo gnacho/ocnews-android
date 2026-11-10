@@ -102,8 +102,23 @@ class MainActivity : ComponentActivity() {
                         state = state,
                         onBrowserLogin = loginViewModel::startBrowserLogin,
                         onOpenBrowser = { url ->
-                            runCatching {
-                                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                            // No browser, or a policy blocking it: leave a way forward.
+                            val opened = runCatching {
+                                startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                        .addCategory(Intent.CATEGORY_BROWSABLE)
+                                )
+                            }
+                            if (opened.isFailure) {
+                                val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+                                clipboard?.setPrimaryClip(
+                                    android.content.ClipData.newPlainText("login", url)
+                                )
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    R.string.browser_unavailable,
+                                    Toast.LENGTH_LONG,
+                                ).show()
                             }
                         },
                         onServerUrlChange = loginViewModel::onServerUrlChange,

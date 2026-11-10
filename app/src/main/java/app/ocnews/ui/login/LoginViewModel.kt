@@ -25,6 +25,8 @@ data class LoginUiState(
     // Set while the Nextcloud browser login is in progress.
     val browserLoginUrl: String? = null,
     val browserLoginWaiting: Boolean = false,
+    // Technical detail of the last failure, shown under the message.
+    val detail: String? = null,
 )
 
 class LoginViewModel(
@@ -60,18 +62,27 @@ class LoginViewModel(
             _state.update {
                 it.copy(browserLoginWaiting = true, errorRes = null, errorArgs = emptyList())
             }
-            val start = runCatching { loginFlow.start(server) }.getOrNull()
+            val started = runCatching { loginFlow.start(server) }
+            val start = started.getOrNull()
             if (start == null) {
+                val reason = started.exceptionOrNull()?.message ?: "sin respuesta"
+                println("OCNEWS login v2 start failed: $reason")
                 _state.update {
-                    it.copy(browserLoginWaiting = false, errorRes = R.string.err_login_failed)
+                    it.copy(
+                        browserLoginWaiting = false,
+                        errorRes = R.string.err_login_failed,
+                        detail = "login/v2: $reason",
+                    )
                 }
                 return@launch
             }
-            _state.update { it.copy(browserLoginUrl = start.loginUrl) }
+            println("OCNEWS login v2 url: ${start.loginUrl}")
+            _state.update { it.copy(browserLoginUrl = start.loginUrl, detail = null) }
             repeat(POLL_ATTEMPTS) {
                 delay(POLL_INTERVAL_MS)
-                val credentials = runCatching { loginFlow.poll(start.pollEndpoint, start.pollToken) }
-                    .getOrNull()
+                val polled = runCatching { loginFlow.poll(start.pollEndpoint, start.pollToken) }
+                val credentials = polled.getOrNull()
+                polled.exceptionOrNull()?.let { println("OCNEWS login v2 poll failed: ${it.message}") }
                 if (credentials != null && credentials.loginName.isNotBlank()) {
                     _state.update {
                         it.copy(browserLoginUrl = null, browserLoginWaiting = false, loading = true)
