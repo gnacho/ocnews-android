@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.72] - 2026-11-10
+
+### Added
+
+- Videos inside articles are shown as a card with a play button, and tapping it opens the video outside the app. Feed HTML rarely includes the video, but the server-side full text keeps the <video> tag, so it appears for feeds with "fetch full article" on.
+
 ## [0.1.70] - 2026-11-10
 
 ### Changed
