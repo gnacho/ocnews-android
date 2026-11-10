@@ -4,6 +4,13 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.94] - 2026-11-10
+
+### Changed
+
+- The login screen shows the app version at the bottom, so it can be checked without signing in.
+- While the Nextcloud authorisation is starting, the screen says whether it is checking the server or waiting for the browser.
+
 ## [0.1.92] - 2026-11-10
 
 ### Added
