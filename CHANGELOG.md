@@ -4,6 +4,14 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.80] - 2026-11-10
+
+### Changed
+
+- The login screen asks which server it is talking to (Nextcloud or OpenCloud) and adapts the password label and the hint that explains where to create it.
+- The server URL no longer needs the scheme: anything without http(s) is taken as https, and trailing slashes are dropped.
+- Log out lives only in Settings now; it was removed from the top bar menu.
+
 ## [0.1.78] - 2026-11-10
 
 ### Added

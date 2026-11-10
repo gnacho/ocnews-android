@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import app.ocnews.util.normalizeServerUrl
 import kotlinx.coroutines.flow.map
 
 data class Session(
@@ -15,7 +16,7 @@ data class Session(
     val token: String,
 ) {
     val baseUrl: String
-        get() = serverUrl.trimEnd('/') + "/index.php/apps/news/api/v1-3/"
+        get() = normalizeServerUrl(serverUrl) + "/index.php/apps/news/api/v1-3/"
 }
 
 interface SessionStore {

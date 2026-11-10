@@ -213,7 +213,6 @@ fun MainScreen(
     var showAddFeed by remember { mutableStateOf(false) }
     var searchActive by remember { mutableStateOf(false) }
     var profileMenuOpen by remember { mutableStateOf(false) }
-    var confirmLogout by remember { mutableStateOf(false) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -287,24 +286,6 @@ fun MainScreen(
         }
     }
 
-    if (confirmLogout) {
-        AlertDialog(
-            onDismissRequest = { confirmLogout = false },
-            title = { Text(stringResource(R.string.logout_confirm_title)) },
-            text = { Text(stringResource(R.string.logout_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmLogout = false
-                    onLogout()
-                }) { Text(stringResource(R.string.log_out)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmLogout = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -434,14 +415,7 @@ fun MainScreen(
                                                 onMarkAllRead()
                                             },
                                         )
-                                        HorizontalDivider()
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(R.string.log_out)) },
-                                            onClick = {
-                                                profileMenuOpen = false
-                                                confirmLogout = true
-                                            },
-                                        )
+
                                     }
                                 }
                             }

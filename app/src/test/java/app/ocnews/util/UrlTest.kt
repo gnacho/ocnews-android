@@ -2,6 +2,7 @@ package app.ocnews.util
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.Assert.assertEquals
 
 class UrlTest {
 
@@ -32,5 +33,14 @@ class UrlTest {
     @Test
     fun `blank path stays blank`() {
         assertEquals("", resolveUrl("https://host", ""))
+    }
+
+    @Test
+    fun `normalizeServerUrl adds https and drops trailing slashes`() {
+        assertEquals("https://cloud.example.com", normalizeServerUrl("cloud.example.com"))
+        assertEquals("https://cloud.example.com", normalizeServerUrl("  cloud.example.com/  "))
+        assertEquals("https://cloud.example.com", normalizeServerUrl("https://cloud.example.com/"))
+        assertEquals("http://192.168.1.10:8080", normalizeServerUrl("http://192.168.1.10:8080"))
+        assertEquals("", normalizeServerUrl("   "))
     }
 }

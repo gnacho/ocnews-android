@@ -1,6 +1,7 @@
 package app.ocnews.ui.login
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,10 +10,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -29,6 +35,15 @@ fun LoginScreen(
     onTokenChange: (String) -> Unit,
     onLogin: () -> Unit,
 ) {
+    var provider by remember { mutableStateOf(ServerProvider.OPENCLOUD) }
+    val passwordLabel = when (provider) {
+        ServerProvider.OPENCLOUD -> R.string.app_token
+        ServerProvider.NEXTCLOUD -> R.string.app_password
+    }
+    val passwordHint = when (provider) {
+        ServerProvider.OPENCLOUD -> R.string.app_token_hint
+        ServerProvider.NEXTCLOUD -> R.string.app_password_hint
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -36,11 +51,30 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(text = stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.server_type),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = provider == ServerProvider.NEXTCLOUD,
+                onClick = { provider = ServerProvider.NEXTCLOUD },
+                label = { Text(stringResource(R.string.provider_nextcloud)) },
+            )
+            FilterChip(
+                selected = provider == ServerProvider.OPENCLOUD,
+                onClick = { provider = ServerProvider.OPENCLOUD },
+                label = { Text(stringResource(R.string.provider_opencloud)) },
+            )
+        }
+        Spacer(Modifier.height(16.dp))
         OutlinedTextField(
             value = state.serverUrl,
             onValueChange = onServerUrlChange,
             label = { Text(stringResource(R.string.server_url)) },
+            placeholder = { Text(stringResource(R.string.server_url_hint)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Uri,
@@ -66,7 +100,8 @@ fun LoginScreen(
         OutlinedTextField(
             value = state.token,
             onValueChange = onTokenChange,
-            label = { Text(stringResource(R.string.app_token)) },
+            label = { Text(stringResource(passwordLabel)) },
+            supportingText = { Text(stringResource(passwordHint)) },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(
@@ -96,3 +131,6 @@ fun LoginScreen(
         }
     }
 }
+
+// Only the wording changes: both servers authenticate with Basic user + app password.
+enum class ServerProvider { NEXTCLOUD, OPENCLOUD }
