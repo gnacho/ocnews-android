@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.76] - 2026-11-10
+
+### Fixed
+
+- The first article opened in a reader session showed as unread even though it was being marked read: its row was read from the database before the pending write landed and overwrote the state. The loaded row now respects what the session already decided.
+
 ## [0.1.74] - 2026-11-10
 
 ### Added

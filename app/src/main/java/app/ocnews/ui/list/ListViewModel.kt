@@ -230,7 +230,14 @@ class ListViewModel(
         if (_itemDetails.value.containsKey(id)) return
         viewModelScope.launch {
             runCatching { repository.itemById(id) }.getOrNull()?.let { item ->
-                _itemDetails.update { it + (id to item) }
+                // The row may be read before the pending write lands, so apply
+                // what this session already decided for the article.
+                val unread = when {
+                    id in keepUnread -> true
+                    id in readThisSession.value -> false
+                    else -> item.unread
+                }
+                _itemDetails.update { it + (id to item.copy(unread = unread)) }
             }
         }
     }
@@ -256,6 +263,7 @@ class ListViewModel(
         val target = !unread
         if (target) {
             keepUnread += id
+            readThisSession.update { it - id }
         } else {
             keepUnread -= id
             readThisSession.update { it + id }
