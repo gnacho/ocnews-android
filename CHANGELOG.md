@@ -4,6 +4,13 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.78] - 2026-11-10
+
+### Added
+
+- Settings has an Account section with the server, the user and Log out (with confirmation).
+- When the server does not return the full text, the app says so instead of doing nothing; Nextcloud's News app has no per-item full text endpoint.
+
 ## [0.1.76] - 2026-11-10
 
 ### Fixed

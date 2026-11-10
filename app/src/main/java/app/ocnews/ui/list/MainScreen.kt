@@ -188,6 +188,8 @@ fun MainScreen(
     onFinishedShown: () -> Unit,
     onAutoRead: (Long) -> Unit,
     onReaderClosed: () -> Unit,
+    fullTextFailed: Boolean,
+    onFullTextFailedShown: () -> Unit,
     fullTextFeedIds: Set<Long>,
     onSaveFeedSettings: (Long, Long?, Boolean) -> Unit,
     onFetchFull: (Long) -> Unit,
@@ -266,6 +268,13 @@ fun MainScreen(
                 }
             },
         )
+    }
+
+    LaunchedEffect(fullTextFailed) {
+        if (fullTextFailed) {
+            Toast.makeText(context, R.string.full_text_failed, Toast.LENGTH_LONG).show()
+            onFullTextFailedShown()
+        }
     }
 
     // Once the reader has slid away, forget its data and reset the session.
