@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.88] - 2026-11-10
+
+### Changed
+
+- New icon: flat #20434F background with the newspaper glyph in #E2BAFF, replacing the radial gradient and the white glyph. The legacy PNGs are regenerated too.
+
 ## [0.1.86] - 2026-11-10
 
 ### Added
