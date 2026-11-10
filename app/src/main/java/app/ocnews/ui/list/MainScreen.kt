@@ -12,6 +12,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -963,6 +965,39 @@ private fun ArticleRow(
     }
 }
 
+// Videos from the article open outside the app; the poster is shown as a preview.
+@Composable
+private fun VideoCard(url: String, poster: String?) {
+    val context = LocalContext.current
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+            .padding(bottom = 10.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black)
+            .clickable {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (poster != null) {
+            AsyncImage(
+                model = poster,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Icon(
+            imageVector = Icons.Filled.PlayArrow,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(56.dp),
+        )
+    }
+}
+
 private const val READ_ALPHA = 0.55f
 
 @Composable
@@ -1285,6 +1320,7 @@ private fun ReaderPage(
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
+                    is ReaderBlock.Video -> VideoCard(block.url, block.poster)
                     is ReaderBlock.Image -> AsyncImage(
                         model = block.url,
                         contentDescription = null,
@@ -1302,10 +1338,21 @@ private fun ReaderPage(
 
 private fun Char.isVisibleChar(): Boolean = !isWhitespace() && this != '\u00A0'
 
+// Source of a <video> tag, either in its attributes or in a nested <source>.
+private fun videoSource(attrs: String, inner: String): String? {
+    val src = Regex("""src\s*=\s*[\"']([^\"']+)[\"']""", RegexOption.IGNORE_CASE)
+    val raw = src.find(attrs)?.groupValues?.getOrNull(1)
+        ?: src.find(inner)?.groupValues?.getOrNull(1)
+        ?: return null
+    return unpackImageUrl(raw)
+}
+
 private sealed interface ReaderBlock {
     // card blocks are boilerplate: a label plus a link, whatever the wording.
     data class Text(val content: AnnotatedString, val card: Boolean = false) : ReaderBlock
     data class Image(val url: String) : ReaderBlock
+    // Video embeds cannot play inline yet, so they show a poster and open outside.
+    data class Video(val url: String, val poster: String?) : ReaderBlock
 }
 
 // Turns the article HTML into text and image blocks in document order, so the
@@ -1316,7 +1363,25 @@ private fun htmlToBlocks(html: String, linkColor: Color, hideRelated: Boolean): 
     val source = if (hideRelated) stripCardLinkRuns(html) else html
     val imgTag = Regex("""<img[^>]*>""", RegexOption.IGNORE_CASE)
     val srcAttr = Regex("""src\s*=\s*[\"']([^\"']+)[\"']""", RegexOption.IGNORE_CASE)
+    val posterAttr = Regex("""poster\s*=\s*[\"']([^\"']+)[\"']""", RegexOption.IGNORE_CASE)
     val result = mutableListOf<ReaderBlock>()
+
+    // Videos are pulled out first: feed readability sometimes keeps the <video> tag.
+    val videos = mutableListOf<Triple<IntRange, String, String?>>()
+    for (match in Regex("""(?is)<video\b([^>]*)>(.*?)</video>""").findAll(source)) {
+        val url = videoSource(match.groupValues[1], match.groupValues[2]) ?: continue
+        val poster = posterAttr.find(match.groupValues[1])?.groupValues?.getOrNull(1)
+            ?.let { unpackImageUrl(it) }
+        videos.add(Triple(match.range, url, poster))
+    }
+    for (match in Regex("""(?is)<video\b([^>]*)/>""").findAll(source)) {
+        if (videos.any { match.range.first in it.first }) continue
+        val url = videoSource(match.groupValues[1], "") ?: continue
+        val poster = posterAttr.find(match.groupValues[1])?.groupValues?.getOrNull(1)
+            ?.let { unpackImageUrl(it) }
+        videos.add(Triple(match.range, url, poster))
+    }
+    val videoAt = videos.sortedBy { it.first.first }
 
     fun addText(chunk: String) {
         for (part in splitHtmlBlocks(chunk)) {
@@ -1335,12 +1400,27 @@ private fun htmlToBlocks(html: String, linkColor: Color, hideRelated: Boolean): 
         }
     }
 
-    var cursor = 0
+    data class Media(val start: Int, val end: Int, val block: ReaderBlock)
+
+    val media = mutableListOf<Media>()
+    for (video in videoAt) {
+        media.add(
+            Media(video.first.first, video.first.last + 1, ReaderBlock.Video(video.second, video.third))
+        )
+    }
     for (match in imgTag.findAll(source)) {
-        if (match.range.first > cursor) addText(source.substring(cursor, match.range.first))
-        val src = srcAttr.find(match.value)?.groupValues?.getOrNull(1)
-        if (!src.isNullOrBlank()) result.add(ReaderBlock.Image(unpackImageUrl(src)))
-        cursor = match.range.last + 1
+        if (videoAt.any { match.range.first in it.first }) continue
+        val src = srcAttr.find(match.value)?.groupValues?.getOrNull(1) ?: continue
+        media.add(Media(match.range.first, match.range.last + 1, ReaderBlock.Image(unpackImageUrl(src))))
+    }
+    media.sortBy { it.start }
+
+    var cursor = 0
+    for (element in media) {
+        if (element.start < cursor) continue
+        if (element.start > cursor) addText(source.substring(cursor, element.start))
+        result.add(element.block)
+        cursor = element.end
     }
     if (cursor < source.length) addText(source.substring(cursor))
     if (!hideRelated) return result
