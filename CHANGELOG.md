@@ -4,6 +4,13 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.84] - 2026-11-10
+
+### Added
+
+- When the Nextcloud browser sign in fails, the reason is shown under the message instead of a generic error.
+- If no browser can be opened, the login link is copied to the clipboard and the app says so.
+
 ## [0.1.82] - 2026-11-10
 
 ### Added

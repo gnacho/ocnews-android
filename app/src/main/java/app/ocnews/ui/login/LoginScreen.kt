@@ -127,6 +127,14 @@ fun LoginScreen(
                 color = MaterialTheme.colorScheme.error,
             )
         }
+        state.detail?.let { detail ->
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(Modifier.height(16.dp))
         // Nextcloud: authorise in the browser instead of pasting an app password.
         if (provider == ServerProvider.NEXTCLOUD) {

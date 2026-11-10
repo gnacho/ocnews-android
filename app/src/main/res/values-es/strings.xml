@@ -48,6 +48,7 @@
     <string name="server_url_hint">tu-servidor.com (se asume https)</string>
     <string name="sign_in_with_browser">Entrar con el navegador</string>
     <string name="waiting_browser">Esperando a que autorices en el navegador…</string>
+    <string name="browser_unavailable">No hay navegador disponible. El enlace de acceso se ha copiado al portapapeles.</string>
     <string name="settings">Ajustes</string>
     <string name="about">Acerca de</string>
     <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>
