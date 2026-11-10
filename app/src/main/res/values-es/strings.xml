@@ -34,6 +34,7 @@
     <string name="fetch_full_per_feed_hint">Descarga el texto completo de este feed al abrir un artículo</string>
     <string name="save">Guardar</string>
     <string name="feed_settings">Ajustes del feed</string>
+    <string name="video_playback_failed">No se pudo reproducir aquí. Toca para abrirlo fuera.</string>
     <string name="settings">Ajustes</string>
     <string name="about">Acerca de</string>
     <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>
