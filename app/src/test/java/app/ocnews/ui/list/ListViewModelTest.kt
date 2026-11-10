@@ -374,6 +374,46 @@ class ListViewModelTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun `loading the detail after auto reading keeps it read`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val dao = FakeItemDao()
+            dao.items.add(item(1, unread = true))
+            val (vm, _) = viewModel(itemDao = dao)
+
+            // The reader marks it read before its full row is loaded...
+            vm.autoMarkRead(1)
+            // ...and the row arrives still unread from the database.
+            vm.loadItemDetail(1)
+            advanceUntilIdle()
+
+            assertEquals(false, vm.itemDetails.value[1]?.unread)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `loading the detail after marking unread keeps it unread`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val dao = FakeItemDao()
+            dao.items.add(item(1, unread = false))
+            val (vm, _) = viewModel(itemDao = dao)
+
+            vm.toggleRead(1, unread = false) // user marks it unread
+            vm.loadItemDetail(1)
+            advanceUntilIdle()
+
+            assertEquals(true, vm.itemDetails.value[1]?.unread)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun `resetReaderSession lets an article be marked read again`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
