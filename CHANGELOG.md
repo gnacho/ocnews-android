@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.86] - 2026-11-10
+
+### Added
+
+- Before signing in, the app checks /status.php on the address and says plainly when there is no Nextcloud or OpenCloud there, instead of failing later with a 404 from the login flow.
+
 ## [0.1.84] - 2026-11-10
 
 ### Added

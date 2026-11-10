@@ -29,7 +29,10 @@ class LoginViewModelTest {
             itemDao = FakeItemDao(),
             apiFactory = { api },
         )
-        return LoginViewModel(repo)
+        return LoginViewModel(
+            repo,
+            serverProbe = { app.ocnews.data.remote.ServerProbe.Result.Ok("34.0.0") },
+        )
     }
 
     @Test

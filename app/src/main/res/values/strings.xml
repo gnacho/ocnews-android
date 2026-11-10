@@ -49,6 +49,7 @@
     <string name="sign_in_with_browser">Sign in with the browser</string>
     <string name="waiting_browser">Waiting for you to authorise in the browser…</string>
     <string name="browser_unavailable">No browser available. The login link has been copied to the clipboard.</string>
+    <string name="err_server_not_found">No Nextcloud or OpenCloud found at that address. Check the URL.</string>
     <string name="settings">Settings</string>
     <string name="about">About</string>
     <string name="about_text">ocnews %1$s\nRSS reader for OpenCloud.</string>
