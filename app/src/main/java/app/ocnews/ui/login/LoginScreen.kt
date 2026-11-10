@@ -41,6 +41,7 @@ fun LoginScreen(
     onBrowserLogin: () -> Unit,
     onOpenBrowser: (String) -> Unit,
     onCopyToClipboard: (String) -> Unit,
+    onBrowserLoginCancel: () -> Unit,
 ) {
     var provider by remember { mutableStateOf(ServerProvider.OPENCLOUD) }
     val passwordLabel = when (provider) {
@@ -169,8 +170,13 @@ fun LoginScreen(
                     }
                 }
             }
+            // Authorise inside the app: launching another app may be blocked.
             state.browserLoginUrl?.let { url ->
-                LaunchedEffect(url) { onOpenBrowser(url) }
+                NextcloudLoginSheet(
+                    url = url,
+                    onClose = onBrowserLoginCancel,
+                    onOpenBrowser = onOpenBrowser,
+                )
             }
         }
         Spacer(Modifier.height(16.dp))

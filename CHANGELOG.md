@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.92] - 2026-11-10
+
+### Added
+
+- The Nextcloud authorisation page opens inside the app, so the sign in completes even on phones that block launching another app. The top bar still opens the same page in the system browser.
+
 ## [0.1.90] - 2026-11-10
 
 ### Added

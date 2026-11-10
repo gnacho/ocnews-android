@@ -122,6 +122,7 @@ class MainActivity : ComponentActivity() {
                                 ).show()
                             }
                         },
+                        onBrowserLoginCancel = loginViewModel::cancelBrowserLogin,
                         onCopyToClipboard = { url ->
                             val clipboard = getSystemService(android.content.ClipboardManager::class.java)
                             clipboard?.setPrimaryClip(
