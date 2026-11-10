@@ -3,12 +3,15 @@ package app.ocnews.ui.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import app.ocnews.data.remote.NextcloudLoginFlow
 import app.ocnews.data.repo.NewsRepository
 import app.ocnews.data.repo.NewsRepository.LoginResult
+import app.ocnews.R
 import app.ocnews.util.normalizeServerUrl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 data class LoginUiState(
@@ -19,9 +22,15 @@ data class LoginUiState(
     val errorRes: Int? = null,
     val errorArgs: List<Any> = emptyList(),
     val loggedIn: Boolean = false,
+    // Set while the Nextcloud browser login is in progress.
+    val browserLoginUrl: String? = null,
+    val browserLoginWaiting: Boolean = false,
 )
 
-class LoginViewModel(private val repository: NewsRepository) : ViewModel() {
+class LoginViewModel(
+    private val repository: NewsRepository,
+    private val loginFlow: NextcloudLoginFlow = NextcloudLoginFlow(),
+) : ViewModel() {
     private val _state = MutableStateFlow(LoginUiState())
     val state: StateFlow<LoginUiState> = _state
 
@@ -34,17 +43,70 @@ class LoginViewModel(private val repository: NewsRepository) : ViewModel() {
         if (s.loading) return
         viewModelScope.launch {
             _state.update { it.copy(loading = true, errorRes = null, errorArgs = emptyList()) }
-            val server = normalizeServerUrl(s.serverUrl)
-            when (val result = repository.login(server, s.username.trim(), s.token.trim())) {
-                LoginResult.Success -> _state.update { it.copy(loading = false, loggedIn = true) }
-                is LoginResult.Error -> _state.update {
-                    it.copy(loading = false, errorRes = result.messageRes, errorArgs = result.args)
+            performLogin(normalizeServerUrl(s.serverUrl), s.username.trim(), s.token.trim())
+        }
+    }
+
+    // Nextcloud login flow v2: authorise in the browser and come back logged in.
+    fun startBrowserLogin() {
+        val s = _state.value
+        if (s.loading || s.browserLoginWaiting) return
+        val server = normalizeServerUrl(s.serverUrl)
+        if (server.isEmpty()) {
+            _state.update { it.copy(errorRes = R.string.err_login_failed) }
+            return
+        }
+        viewModelScope.launch {
+            _state.update {
+                it.copy(browserLoginWaiting = true, errorRes = null, errorArgs = emptyList())
+            }
+            val start = runCatching { loginFlow.start(server) }.getOrNull()
+            if (start == null) {
+                _state.update {
+                    it.copy(browserLoginWaiting = false, errorRes = R.string.err_login_failed)
                 }
+                return@launch
+            }
+            _state.update { it.copy(browserLoginUrl = start.loginUrl) }
+            repeat(POLL_ATTEMPTS) {
+                delay(POLL_INTERVAL_MS)
+                val credentials = runCatching { loginFlow.poll(start.pollEndpoint, start.pollToken) }
+                    .getOrNull()
+                if (credentials != null && credentials.loginName.isNotBlank()) {
+                    _state.update {
+                        it.copy(browserLoginUrl = null, browserLoginWaiting = false, loading = true)
+                    }
+                    performLogin(server, credentials.loginName, credentials.appPassword)
+                    return@launch
+                }
+            }
+            _state.update {
+                it.copy(
+                    browserLoginUrl = null,
+                    browserLoginWaiting = false,
+                    errorRes = R.string.err_login_failed,
+                )
+            }
+        }
+    }
+
+    fun cancelBrowserLogin() {
+        _state.update { it.copy(browserLoginUrl = null, browserLoginWaiting = false) }
+    }
+
+    private suspend fun performLogin(server: String, username: String, token: String) {
+        when (val result = repository.login(server, username, token)) {
+            LoginResult.Success -> _state.update { it.copy(loading = false, loggedIn = true) }
+            is LoginResult.Error -> _state.update {
+                it.copy(loading = false, errorRes = result.messageRes, errorArgs = result.args)
             }
         }
     }
 
     companion object {
+        private const val POLL_INTERVAL_MS = 2_000L
+        private const val POLL_ATTEMPTS = 60
+
         fun factory(repository: NewsRepository): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
