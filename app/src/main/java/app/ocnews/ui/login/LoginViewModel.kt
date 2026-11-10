@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.ocnews.data.repo.NewsRepository
 import app.ocnews.data.repo.NewsRepository.LoginResult
+import app.ocnews.util.normalizeServerUrl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -33,7 +34,8 @@ class LoginViewModel(private val repository: NewsRepository) : ViewModel() {
         if (s.loading) return
         viewModelScope.launch {
             _state.update { it.copy(loading = true, errorRes = null, errorArgs = emptyList()) }
-            when (val result = repository.login(s.serverUrl.trim(), s.username.trim(), s.token.trim())) {
+            val server = normalizeServerUrl(s.serverUrl)
+            when (val result = repository.login(server, s.username.trim(), s.token.trim())) {
                 LoginResult.Success -> _state.update { it.copy(loading = false, loggedIn = true) }
                 is LoginResult.Error -> _state.update {
                     it.copy(loading = false, errorRes = result.messageRes, errorArgs = result.args)

@@ -39,6 +39,13 @@
     <string name="server_url_label">Servidor</string>
     <string name="username_label">Usuario</string>
     <string name="full_text_failed">El servidor no devolvió el texto completo. Puede que este servidor no lo permita.</string>
+    <string name="server_type">Tipo de servidor</string>
+    <string name="provider_nextcloud">Nextcloud</string>
+    <string name="provider_opencloud">OpenCloud</string>
+    <string name="app_password">Contraseña de aplicación</string>
+    <string name="app_password_hint">Nextcloud → Ajustes → Seguridad → Contraseñas de aplicación</string>
+    <string name="app_token_hint">OpenCloud → Cuenta → Seguridad → Contraseñas de aplicación</string>
+    <string name="server_url_hint">tu-servidor.com (se asume https)</string>
     <string name="settings">Ajustes</string>
     <string name="about">Acerca de</string>
     <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>
