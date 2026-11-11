@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.ocnews.BuildConfig
 import app.ocnews.R
+import app.ocnews.util.normalizeServerUrl
 
 @Composable
 fun LoginScreen(
@@ -136,6 +137,19 @@ fun LoginScreen(
                 text = stringResource(state.errorRes, *state.errorArgs.toTypedArray()),
                 color = MaterialTheme.colorScheme.error,
             )
+            // A 401 is nearly always the credentials: the server password does
+            // not work for apps when two factor is on.
+            if (state.errorRes == R.string.err_invalid_credentials && state.serverUrl.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(
+                        R.string.err_invalid_credentials_hint,
+                        appPasswordUrl(state.serverUrl),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         state.detail?.let { detail ->
             Spacer(Modifier.height(4.dp))
@@ -248,3 +262,7 @@ fun LoginScreen(
 
 // Only the wording changes: both servers authenticate with Basic user + app password.
 enum class ServerProvider { NEXTCLOUD, OPENCLOUD }
+
+// Page where the server issues an app password.
+private fun appPasswordUrl(serverUrl: String): String =
+    normalizeServerUrl(serverUrl).trimEnd('/') + "/settings/user/security"

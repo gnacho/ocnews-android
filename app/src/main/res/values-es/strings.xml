@@ -60,6 +60,7 @@
     <string name="diagnostic">Probar la conexión</string>
     <string name="diagnostic_running">Probando…</string>
     <string name="diagnostic_copy">Copiar el informe</string>
+    <string name="err_invalid_credentials_hint">Crea una contraseña de aplicación en %1$s y pégala aquí.</string>
     <string name="settings">Ajustes</string>
     <string name="about">Acerca de</string>
     <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>

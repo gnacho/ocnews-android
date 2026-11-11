@@ -46,7 +46,18 @@ class ServerProbe(
                 Result.Ok(version)
             }
         } catch (e: Exception) {
-            Result.Failed("status.php: ${e.message ?: e::class.java.simpleName}")
+            val privateIp = runCatching {
+                java.net.InetAddress.getAllByName(java.net.URI("$base/").host)
+                    .all { app.ocnews.util.isPrivateAddress(it) }
+            }.getOrDefault(false)
+            val reason = e.message ?: e::class.java.simpleName
+            Result.Failed(
+                if (privateIp) {
+                    "status.php: $reason (el nombre resuelve a una IP privada; revisa el DNS local o usa la URL pública)"
+                } else {
+                    "status.php: $reason"
+                }
+            )
         }
     }
 }

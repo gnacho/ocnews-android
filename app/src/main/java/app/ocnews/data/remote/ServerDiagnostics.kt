@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import app.ocnews.util.isPrivateAddress
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -32,8 +33,18 @@ class ServerDiagnostics {
             val addresses = runCatching { InetAddress.getAllByName(host) }
             val dnsMs = System.currentTimeMillis() - started
             lines += when {
-                addresses.isSuccess -> "1) DNS OK (${dnsMs}ms): " +
-                    addresses.getOrThrow().joinToString(", ") { it.hostAddress ?: "?" }
+                addresses.isSuccess -> {
+                    val list = addresses.getOrThrow()
+                    val detail = "1) DNS OK (${dnsMs}ms): " +
+                        list.joinToString(", ") { it.hostAddress ?: "?" }
+                    val privateOnly = list.all { isPrivateAddress(it) }
+                    if (privateOnly) {
+                        detail + "\n   AVISO: solo direcciones privadas. En tu red local el nombre apunta " +
+                            "a un servidor interno; fuera de ella no funcionará."
+                    } else {
+                        detail
+                    }
+                }
                 else -> "1) DNS FALLA (${dnsMs}ms): ${addresses.exceptionOrNull()?.javaClass?.simpleName} " +
                     "${addresses.exceptionOrNull()?.message}"
             }
