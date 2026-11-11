@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.ocnews.data.remote.NextcloudLoginFlow
 import app.ocnews.data.remote.ServerChecker
+import app.ocnews.data.remote.ServerDiagnostics
 import app.ocnews.data.remote.ServerProbe
 import app.ocnews.data.repo.NewsRepository
 import app.ocnews.data.repo.NewsRepository.LoginResult
@@ -30,12 +31,16 @@ data class LoginUiState(
     val browserLoginWaiting: Boolean = false,
     // Technical detail of the last failure, shown under the message.
     val detail: String? = null,
+    // Connection report produced by the diagnostics button.
+    val diagnostic: List<String>? = null,
+    val diagnosticRunning: Boolean = false,
 )
 
 class LoginViewModel(
     private val repository: NewsRepository,
     private val loginFlow: NextcloudLoginFlow = NextcloudLoginFlow(),
     private val serverProbe: ServerChecker = ServerProbe(),
+    private val diagnostics: ServerDiagnostics = ServerDiagnostics(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(LoginUiState())
     val state: StateFlow<LoginUiState> = _state
@@ -156,6 +161,20 @@ class LoginViewModel(
                 )
             }
             performLogin(normalizeServerUrl(url), userId, appPassword)
+        }
+    }
+
+    // Runs the connection report from the device, for cases where the sign in
+    // gives no clue.
+    fun runDiagnostics() {
+        val s = _state.value
+        if (s.diagnosticRunning) return
+        viewModelScope.launch {
+            _state.update { it.copy(diagnosticRunning = true, diagnostic = null) }
+            val report = runCatching {
+                diagnostics.run(normalizeServerUrl(s.serverUrl), s.username.trim(), s.token.trim())
+            }.getOrElse { listOf("diagnóstico falló: ${it.message}") }
+            _state.update { it.copy(diagnosticRunning = false, diagnostic = report) }
         }
     }
 

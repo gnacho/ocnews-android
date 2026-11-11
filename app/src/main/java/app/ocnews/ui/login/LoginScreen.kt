@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -44,6 +47,8 @@ fun LoginScreen(
     onCopyToClipboard: (String) -> Unit,
     onBrowserLoginCancel: () -> Unit,
     onPickNextcloudAccount: () -> Unit,
+    onRunDiagnostics: () -> Unit,
+    onCopyDiagnostics: (List<String>) -> Unit,
 ) {
     var provider by remember { mutableStateOf(ServerProvider.OPENCLOUD) }
     val passwordLabel = when (provider) {
@@ -206,6 +211,30 @@ fun LoginScreen(
                 if (state.loading) stringResource(R.string.signing_in)
                 else stringResource(R.string.sign_in)
             )
+        }
+        TextButton(
+            onClick = onRunDiagnostics,
+            enabled = !state.diagnosticRunning,
+        ) {
+            Text(
+                if (state.diagnosticRunning) stringResource(R.string.diagnostic_running)
+                else stringResource(R.string.diagnostic)
+            )
+        }
+        state.diagnostic?.let { report ->
+            Text(
+                text = report.joinToString("\n"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(8.dp),
+            )
+            TextButton(onClick = { onCopyDiagnostics(report) }) {
+                Text(stringResource(R.string.diagnostic_copy))
+            }
         }
         Text(
             text = "ocnews ${BuildConfig.VERSION_NAME}",
