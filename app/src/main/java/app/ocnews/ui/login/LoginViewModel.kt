@@ -142,8 +142,18 @@ class LoginViewModel(
     // the server URL, the user id and an app password, so the normal sign in works.
     fun loginWithSso(url: String, userId: String, appPassword: String) {
         if (_state.value.loading) return
+        println("OCNEWS sso account: url=$url user=$userId token=${appPassword.length} chars")
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, errorRes = null, errorArgs = emptyList(), detail = null) }
+            _state.update {
+                it.copy(
+                    loading = true,
+                    errorRes = null,
+                    errorArgs = emptyList(),
+                    detail = "sso: $url · $userId",
+                    serverUrl = url,
+                    username = userId,
+                )
+            }
             performLogin(normalizeServerUrl(url), userId, appPassword)
         }
     }
@@ -155,8 +165,23 @@ class LoginViewModel(
     private suspend fun performLogin(server: String, username: String, token: String) {
         when (val result = repository.login(server, username, token)) {
             LoginResult.Success -> _state.update { it.copy(loading = false, loggedIn = true) }
-            is LoginResult.Error -> _state.update {
-                it.copy(loading = false, errorRes = result.messageRes, errorArgs = result.args)
+            is LoginResult.Error -> {
+                println("OCNEWS login failed: res=${result.messageRes} args=${result.args}")
+                _state.update {
+                    it.copy(
+                        loading = false,
+                        errorRes = result.messageRes,
+                        errorArgs = result.args,
+                        detail = buildString {
+                            append("HTTP ")
+                            append(result.args.firstOrNull() ?: "-")
+                            append(" · ")
+                            append(server)
+                            append(" · ")
+                            append(username)
+                        },
+                    )
+                }
             }
         }
     }

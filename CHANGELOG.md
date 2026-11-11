@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.98] - 2026-11-11
+
+### Changed
+
+- The imported account fills the server and user fields, and a failed sign in shows the HTTP code with the server and user used, so the problem can be identified.
+
 ## [0.1.96] - 2026-11-11
 
 ### Added
