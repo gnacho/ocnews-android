@@ -1,6 +1,6 @@
 # ocnews-android
 
-![version](https://img.shields.io/badge/version-0.2.4-blue)
+![version](https://img.shields.io/badge/version-0.2.6-blue)
 
 Native Android client for [ocnews](https://github.com/gnacho/ocnews), the RSS reader for OpenCloud.
 
