@@ -134,6 +134,14 @@ class MainActivity : ComponentActivity() {
                         },
                         onBrowserLoginCancel = loginViewModel::cancelBrowserLogin,
                         onPickNextcloudAccount = { importNextcloudAccount.launch(null) },
+                        onRunDiagnostics = loginViewModel::runDiagnostics,
+                        onCopyDiagnostics = { report ->
+                            val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+                            clipboard?.setPrimaryClip(
+                                android.content.ClipData.newPlainText("diagnóstico", report.joinToString("\n"))
+                            )
+                            Toast.makeText(this@MainActivity, R.string.diagnostic_copy, Toast.LENGTH_SHORT).show()
+                        },
                         onCopyToClipboard = { url ->
                             val clipboard = getSystemService(android.content.ClipboardManager::class.java)
                             clipboard?.setPrimaryClip(

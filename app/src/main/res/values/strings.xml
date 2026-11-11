@@ -57,6 +57,9 @@
     <string name="use_nextcloud_account">Use my Nextcloud account</string>
     <string name="sso_no_account">No Nextcloud account found. Install and sign in to the Nextcloud app first.</string>
     <string name="err_login_timeout">The server did not answer. Check the connection or the address.</string>
+    <string name="diagnostic">Test the connection</string>
+    <string name="diagnostic_running">Testing…</string>
+    <string name="diagnostic_copy">Copy the report</string>
     <string name="settings">Settings</string>
     <string name="about">About</string>
     <string name="about_text">ocnews %1$s\nRSS reader for OpenCloud.</string>
