@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 
 data class LoginUiState(
@@ -163,7 +164,31 @@ class LoginViewModel(
     }
 
     private suspend fun performLogin(server: String, username: String, token: String) {
-        when (val result = repository.login(server, username, token)) {
+        // Never leave the screen stuck on "signing in": a slow or black-holed
+        // request must end in a message.
+        val result = withTimeoutOrNull(LOGIN_TIMEOUT_MS) {
+            repository.login(server, username, token)
+        }
+        if (result == null) {
+            // Distinguish "the server cannot be reached from here" (a network or
+            // firewall block) from "the API answers but not this request".
+            val probe = runCatching { serverProbe.check(server) }.getOrNull()
+            val where = when (probe) {
+                is ServerProbe.Result.Failed -> "status.php: ${probe.detail}"
+                is ServerProbe.Result.Ok -> "status.php OK (${probe.version}), API sin respuesta"
+                null -> "status.php: sin respuesta"
+            }
+            _state.update {
+                it.copy(
+                    loading = false,
+                    errorRes = R.string.err_login_timeout,
+                    errorArgs = emptyList(),
+                    detail = "${LOGIN_TIMEOUT_MS / 1000}s · $where",
+                )
+            }
+            return
+        }
+        when (result) {
             LoginResult.Success -> _state.update { it.copy(loading = false, loggedIn = true) }
             is LoginResult.Error -> {
                 println("OCNEWS login failed: res=${result.messageRes} args=${result.args}")
@@ -187,6 +212,7 @@ class LoginViewModel(
     }
 
     companion object {
+        private const val LOGIN_TIMEOUT_MS = 20_000L
         private const val POLL_INTERVAL_MS = 2_000L
         private const val POLL_ATTEMPTS = 60
 
