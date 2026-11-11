@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import com.nextcloud.android.sso.ImportSsoAccount
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -57,6 +58,15 @@ class MainActivity : ComponentActivity() {
     private val settingsViewModel: SettingsViewModel by viewModels {
         SettingsViewModel.factory(settingsStore)
     }
+
+    private val importNextcloudAccount =
+        registerForActivityResult(ImportSsoAccount()) { account ->
+            if (account != null) {
+                loginViewModel.loginWithSso(account.url, account.userId, account.token)
+            } else {
+                Toast.makeText(this, R.string.sso_no_account, Toast.LENGTH_LONG).show()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,6 +133,7 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         onBrowserLoginCancel = loginViewModel::cancelBrowserLogin,
+                        onPickNextcloudAccount = { importNextcloudAccount.launch(null) },
                         onCopyToClipboard = { url ->
                             val clipboard = getSystemService(android.content.ClipboardManager::class.java)
                             clipboard?.setPrimaryClip(

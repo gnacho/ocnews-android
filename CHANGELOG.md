@@ -4,6 +4,16 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.96] - 2026-11-11
+
+### Added
+
+- Sign in with the Nextcloud account already configured on the phone: a new button imports it through Nextcloud Single Sign-On, the same mechanism the official News and Notes apps use, so the server, the user and the app password come from the Nextcloud app.
+
+### Notes
+
+Requires the Nextcloud Files app installed and signed in. Core library desugaring is enabled because the library needs it.
+
 ## [0.1.94] - 2026-11-10
 
 ### Changed

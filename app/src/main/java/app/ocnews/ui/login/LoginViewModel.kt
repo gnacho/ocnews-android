@@ -138,6 +138,16 @@ class LoginViewModel(
         }
     }
 
+    // Account imported from the Nextcloud app through Single Sign-On: it gives
+    // the server URL, the user id and an app password, so the normal sign in works.
+    fun loginWithSso(url: String, userId: String, appPassword: String) {
+        if (_state.value.loading) return
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true, errorRes = null, errorArgs = emptyList(), detail = null) }
+            performLogin(normalizeServerUrl(url), userId, appPassword)
+        }
+    }
+
     fun cancelBrowserLogin() {
         _state.update { it.copy(browserLoginUrl = null, browserLoginWaiting = false) }
     }
