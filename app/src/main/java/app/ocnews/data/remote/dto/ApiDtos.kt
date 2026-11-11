@@ -14,13 +14,15 @@ data class FeedDto(
     val id: Long,
     val url: String,
     val title: String,
-    val faviconLink: String = "",
+    // The Nextcloud News app sends both as null until the feed has been
+    // fetched once, so they cannot be primitives.
+    val faviconLink: String? = null,
     val added: Long = 0,
-    val nextUpdateTime: Long = 0,
+    val nextUpdateTime: Long? = null,
     val folderId: Long? = null,
     val unreadCount: Long = 0,
     val ordering: Int = 0,
-    val link: String = "",
+    val link: String? = null,
     val pinned: Boolean = false,
     val updateErrorCount: Int = 0,
     val lastUpdateError: String? = null,

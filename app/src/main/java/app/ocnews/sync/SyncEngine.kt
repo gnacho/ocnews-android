@@ -53,7 +53,7 @@ class SyncEngine(
         val feeds = api.feeds()
         folderDao.upsertAll(folders.folders.map { it.toEntity() })
         feedDao.upsertAll(
-            feeds.feeds.map { it.toEntity().copy(faviconLink = resolveUrl(it.faviconLink)) }
+            feeds.feeds.map { it.toEntity().copy(faviconLink = resolveUrl(it.faviconLink.orEmpty())) }
         )
     }
 

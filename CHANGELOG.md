@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.6] - 2026-11-11
+
+### Fixed
+
+- Sync against the Nextcloud News app failed because it sends null for the fields of a feed that has never been fetched (nextUpdateTime, faviconLink, link). The list stayed empty after signing in, which looked like a login problem.
+
 ## [0.2.4] - 2026-11-11
 
 ### Added
