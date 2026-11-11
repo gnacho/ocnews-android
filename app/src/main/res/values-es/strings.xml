@@ -54,6 +54,8 @@
     <string name="copy_link">Copiar enlace</string>
     <string name="link_copied">Enlace copiado. Ábrelo en cualquier navegador y termina allí.</string>
     <string name="checking_server">Comprobando el servidor…</string>
+    <string name="use_nextcloud_account">Usar mi cuenta de Nextcloud</string>
+    <string name="sso_no_account">No hay ninguna cuenta de Nextcloud. Instala e inicia sesión en la app de Nextcloud primero.</string>
     <string name="settings">Ajustes</string>
     <string name="about">Acerca de</string>
     <string name="about_text">ocnews %1$s\nLector RSS para OpenCloud.</string>

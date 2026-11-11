@@ -43,6 +43,7 @@ fun LoginScreen(
     onOpenBrowser: (String) -> Unit,
     onCopyToClipboard: (String) -> Unit,
     onBrowserLoginCancel: () -> Unit,
+    onPickNextcloudAccount: () -> Unit,
 ) {
     var provider by remember { mutableStateOf(ServerProvider.OPENCLOUD) }
     val passwordLabel = when (provider) {
@@ -140,6 +141,17 @@ fun LoginScreen(
             )
         }
         Spacer(Modifier.height(16.dp))
+        // Nextcloud: reuse the account already configured in the Nextcloud app.
+        if (provider == ServerProvider.NEXTCLOUD) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onPickNextcloudAccount,
+                enabled = !state.loading,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.use_nextcloud_account))
+            }
+        }
         // Nextcloud: authorise in the browser instead of pasting an app password.
         if (provider == ServerProvider.NEXTCLOUD) {
             Spacer(Modifier.height(8.dp))
