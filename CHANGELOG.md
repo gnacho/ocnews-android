@@ -4,6 +4,13 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.4] - 2026-11-11
+
+### Added
+
+- The connection report warns when the server name only resolves to a private address, which means a local DNS entry that will not work outside the local network.
+- A rejected sign in now points to the page where the server issues an app password, which is what an account password cannot replace when two factor is enabled.
+
 ## [0.2.2] - 2026-11-11
 
 ### Added
