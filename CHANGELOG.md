@@ -4,6 +4,12 @@ All notable changes to ocnews-android are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.10] - 2026-11-16
+
+### Changed
+
+- Swiping a row to the read action toggles: an article that is already read gets marked unread, and the hint behind the row shows which way the swipe will go (filled check to mark read, empty circle to mark unread).
+
 ## [0.2.8] - 2026-11-14
 
 ### Changed
