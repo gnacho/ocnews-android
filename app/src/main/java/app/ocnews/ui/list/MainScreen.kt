@@ -822,10 +822,10 @@ private fun ArticleRow(
     }
 
     fun runAction(action: SwipeAction) {
-        when (action) {
-            SwipeAction.STAR -> if (!item.starred) onToggleStarred(item.id, item.starred)
-            SwipeAction.READ -> if (item.unread) onToggleRead(item.id, item.unread)
-            SwipeAction.NOTHING -> Unit
+        when (resolveSwipe(action, item)) {
+            SwipeOutcome.MARK_READ, SwipeOutcome.MARK_UNREAD -> onToggleRead(item.id, item.unread)
+            SwipeOutcome.STAR -> onToggleStarred(item.id, item.starred)
+            SwipeOutcome.NONE -> Unit
         }
     }
 
@@ -834,7 +834,13 @@ private fun ArticleRow(
         if (action != SwipeAction.NOTHING) {
             val progress = (kotlin.math.abs(offsetX) / commitPx).coerceIn(0f, 1f)
             val (background, icon) = when (action) {
-                SwipeAction.READ -> Color(0xFF2E7D32) to Icons.Filled.CheckCircle
+                // Unread rows offer a filled check (mark read), read rows an
+                // empty circle (mark unread), mirroring the row badge.
+                SwipeAction.READ -> if (item.unread) {
+                    Color(0xFF2E7D32) to Icons.Filled.CheckCircle
+                } else {
+                    Color(0xFF546E7A) to Icons.Outlined.RadioButtonUnchecked
+                }
                 SwipeAction.STAR -> Color(0xFFFFC107) to Icons.Filled.Star
                 SwipeAction.NOTHING -> Color.Transparent to Icons.Filled.CheckCircle
             }
@@ -861,7 +867,7 @@ private fun ArticleRow(
                 .offset { IntOffset(offsetX.toInt(), 0) }
                 .background(MaterialTheme.colorScheme.surface)
                 .clickable(onClick = onClick)
-                .pointerInput(item.id, swipeRight, swipeLeft) {
+                .pointerInput(item.id, item.unread, item.starred, swipeRight, swipeLeft) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
                             val travel = offsetX
